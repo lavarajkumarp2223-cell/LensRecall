@@ -70,7 +70,25 @@ export default function NewEventPage() {
     const reader = new FileReader();
     reader.onload = () => {
       if (typeof reader.result === 'string') {
-        setCoverPhotoUrl(reader.result);
+        // Compress image to prevent localStorage overflow (5MB limit)
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 800;
+          const scale = Math.min(1, MAX_WIDTH / img.width);
+          canvas.width = img.width * scale;
+          canvas.height = img.height * scale;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            const compressed = canvas.toDataURL('image/jpeg', 0.6);
+            setCoverPhotoUrl(compressed);
+          } else {
+            // Fallback: use original if canvas fails
+            setCoverPhotoUrl(reader.result as string);
+          }
+        };
+        img.src = reader.result;
       }
     };
     reader.readAsDataURL(file);
@@ -96,7 +114,13 @@ export default function NewEventPage() {
       ownerEmail: user?.email || '',
     };
 
-    saveUserEvent(newEvent);
+    try {
+      saveUserEvent(newEvent);
+    } catch (err) {
+      setLoading(false);
+      alert('Failed to create event. Storage may be full. Try using a preset cover image instead of a custom upload.');
+      return;
+    }
     setLoading(false);
     router.push('/organizer/events');
   };
