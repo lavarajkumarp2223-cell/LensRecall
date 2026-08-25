@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams, useRouter } from 'next/navigation';
 import {
   Building2,
   Calendar,
@@ -40,7 +41,11 @@ interface WorkerQueue {
   status: 'RUNNING' | 'PAUSED';
 }
 
-export default function SuperAdminLightPage() {
+function AdminCockpitContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const queryTab = (searchParams.get('tab') as 'overview' | 'studios' | 'infrastructure' | 'queues') || 'overview';
+
   const [activeTab, setActiveTab] = useState<'overview' | 'studios' | 'infrastructure' | 'queues'>('overview');
   const [orgs, setOrgs] = useState<StudioOrg[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -65,6 +70,13 @@ export default function SuperAdminLightPage() {
     { name: 'vector-embedding-search-queue', active: 0, completed: 850, failed: 0, status: 'RUNNING' },
     { name: 'zip-bundler-export-queue', active: 0, completed: 310, failed: 0, status: 'RUNNING' },
   ]);
+
+  // Sync tab with URL search param
+  useEffect(() => {
+    if (queryTab) {
+      setActiveTab(queryTab);
+    }
+  }, [queryTab]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -119,6 +131,11 @@ export default function SuperAdminLightPage() {
     try {
       localStorage.setItem('lr_admin_studios', JSON.stringify(updated));
     } catch {}
+  };
+
+  const handleTabChange = (tabId: 'overview' | 'studios' | 'infrastructure' | 'queues') => {
+    setActiveTab(tabId);
+    router.push(tabId === 'overview' ? '/admin' : `/admin?tab=${tabId}`, { scroll: false });
   };
 
   const handleCreateStudio = (e: React.FormEvent) => {
@@ -252,7 +269,8 @@ export default function SuperAdminLightPage() {
         ].map(({ id, label, icon: Icon }) => (
           <button
             key={id}
-            onClick={() => setActiveTab(id as 'overview' | 'studios' | 'infrastructure' | 'queues')}
+            type="button"
+            onClick={() => handleTabChange(id as 'overview' | 'studios' | 'infrastructure' | 'queues')}
             className={`flex items-center gap-2 pb-3.5 px-4 text-xs sm:text-sm font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
               activeTab === id
                 ? 'border-red-600 text-red-600'
@@ -348,7 +366,7 @@ export default function SuperAdminLightPage() {
 
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1">
                 <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold block">
-                  IndexedDB & Object Storage
+                  IndexedDB &amp; Object Storage
                 </span>
                 <div className="text-base font-mono font-bold text-cyan-600">
                   {(photosCount * 3.5).toFixed(1)} MB &bull; 0 Egress Cost
@@ -480,6 +498,44 @@ export default function SuperAdminLightPage() {
         </div>
       )}
 
+      {/* ── TAB: Cloud Infrastructure ───────────────────────────────────────── */}
+      {activeTab === 'infrastructure' && (
+        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-6">
+          <div>
+            <h3 className="font-bold text-base text-slate-900">Cloud Infrastructure Topology</h3>
+            <p className="text-xs text-slate-500">AWS Rekognition partition mapping and edge caching layer</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-xs text-slate-900">AWS Rekognition Partition Engine</span>
+                <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">HEALTHY</span>
+              </div>
+              <p className="text-xs text-slate-600">
+                Partition isolation: <code className="text-indigo-600 font-mono">lensrecall_evt_*</code> collections configured with 99.8% cosine similarity threshold.
+              </p>
+              <div className="text-[11px] text-slate-500 font-mono">
+                Region: ap-south-1 &bull; Active Collections: {eventsCount}
+              </div>
+            </div>
+
+            <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-xs text-slate-900">IndexedDB Client Cache</span>
+                <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">SYNCHRONIZED</span>
+              </div>
+              <p className="text-xs text-slate-600">
+                Persistent event photograph caching enabled across organizer and guest galleries.
+              </p>
+              <div className="text-[11px] text-slate-500 font-mono">
+                Stored Photos: {photosCount} &bull; Total Size: {(photosCount * 3.5).toFixed(1)} MB
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── TAB: BullMQ Worker Queues ───────────────────────────────────────── */}
       {activeTab === 'queues' && (
         <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-4">
@@ -594,5 +650,13 @@ export default function SuperAdminLightPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function SuperAdminPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-xs font-mono text-slate-500">Loading Superadmin Control Plane...</div>}>
+      <AdminCockpitContent />
+    </Suspense>
   );
 }
