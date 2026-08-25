@@ -18,6 +18,8 @@ import {
   Eye,
 } from 'lucide-react';
 
+import { deletePhotosForEvent } from '../../../lib/photo-storage';
+
 export interface EventItem {
   id: string;
   name: string;
@@ -53,6 +55,7 @@ export default function EventsListingPage() {
       setEventsList(updated);
       try {
         localStorage.setItem('lr_organizer_events', JSON.stringify(updated));
+        deletePhotosForEvent(id);
       } catch {}
     }
   };

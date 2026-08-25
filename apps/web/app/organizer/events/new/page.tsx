@@ -13,6 +13,8 @@ import {
   Sparkles,
   Clock,
   Plus,
+  Upload,
+  CheckCircle2,
 } from 'lucide-react';
 
 const CATEGORIES = [
@@ -60,6 +62,18 @@ export default function NewEventPage() {
   const [faceRetentionDays, setFaceRetentionDays] = useState(90);
 
   const [loading, setLoading] = useState(false);
+
+  const handleCustomCoverUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setCoverPhotoUrl(reader.result);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -250,6 +264,33 @@ export default function NewEventPage() {
                   </div>
                 </div>
               ))}
+            </div>
+
+            {/* Custom Cover Photo Upload */}
+            <div className="pt-2 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <label className="px-4 py-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs font-bold text-slate-700 flex items-center gap-2 cursor-pointer transition-colors shadow-sm self-start">
+                <Upload size={15} className="text-indigo-600" />
+                <span>Upload Custom Cover Image</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleCustomCoverUpload}
+                  className="hidden"
+                />
+              </label>
+
+              {coverPhotoUrl && (
+                <div className="flex items-center gap-2">
+                  <img
+                    src={coverPhotoUrl}
+                    alt="Selected Cover"
+                    className="w-12 h-8 rounded-lg object-cover border border-slate-200 shadow-xs"
+                  />
+                  <span className="text-[11px] text-emerald-600 font-bold flex items-center gap-1">
+                    <CheckCircle2 size={13} /> Active Cover Selected
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 

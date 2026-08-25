@@ -46,7 +46,7 @@ export async function savePhotoToStorage(photo: StoredPhoto): Promise<void> {
       tx.onerror = () => reject(tx.error);
     });
 
-    // Asynchronously synchronize photo to cloud API so mobile guests can view it
+    // Asynchronously synchronize photo to cloud API
     if (typeof window !== 'undefined') {
       fetch('/api/photos', {
         method: 'POST',
@@ -84,24 +84,7 @@ export async function getAllPhotosFromStorage(): Promise<StoredPhoto[]> {
       req.onerror = () => reject(req.error);
     });
 
-    if (localPhotos.length > 0) {
-      return localPhotos;
-    }
-
-    // If local IndexedDB is empty (e.g. guest on mobile phone), fetch from cloud API
-    if (typeof window !== 'undefined') {
-      try {
-        const res = await fetch('/api/photos');
-        if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data.photos) && data.photos.length > 0) {
-            return data.photos;
-          }
-        }
-      } catch {}
-    }
-
-    return [];
+    return localPhotos || [];
   } catch {
     return [];
   }
@@ -109,19 +92,19 @@ export async function getAllPhotosFromStorage(): Promise<StoredPhoto[]> {
 
 export async function getPhotosForEvent(eventId: string): Promise<StoredPhoto[]> {
   try {
-    const all = await getAllPhotosFromStorage();
-
     if (!eventId || eventId === 'undefined' || eventId === 'all') {
-      return all;
+      return getAllPhotosFromStorage();
     }
 
-    // Direct match on eventId
+    const all = await getAllPhotosFromStorage();
+
+    // 1. Direct match on eventId
     const directMatches = all.filter((p) => p.eventId === eventId);
     if (directMatches.length > 0) {
       return directMatches;
     }
 
-    // Resolve eventId against localStorage events
+    // 2. Resolve eventId against localStorage events (e.g. if token or prefix was passed)
     try {
       const rawEvents = localStorage.getItem('lr_organizer_events');
       if (rawEvents) {
@@ -142,7 +125,7 @@ export async function getPhotosForEvent(eventId: string): Promise<StoredPhoto[]>
       }
     } catch {}
 
-    // Fallback: If cloud API has photos for this eventId
+    // 3. Fallback: If cloud API has photos specifically for this eventId
     if (typeof window !== 'undefined') {
       try {
         const res = await fetch(`/api/photos?eventId=${encodeURIComponent(eventId)}`);
@@ -155,8 +138,8 @@ export async function getPhotosForEvent(eventId: string): Promise<StoredPhoto[]>
       } catch {}
     }
 
-    // Fallback: return all photos stored
-    return all;
+    // Event has no photos yet
+    return [];
   } catch {
     return [];
   }
@@ -174,6 +157,22 @@ export async function deletePhotoFromStorage(id: string): Promise<void> {
     });
   } catch (err) {
     console.error('Failed to delete photo from IndexedDB:', err);
+  }
+}
+
+export async function deletePhotosForEvent(eventId: string): Promise<void> {
+  try {
+    const db = await openDB();
+    const photos = await getPhotosForEvent(eventId);
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    const store = tx.objectStore(STORE_NAME);
+    photos.forEach((p) => store.delete(p.id));
+    await new Promise<void>((resolve) => {
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+    });
+  } catch (err) {
+    console.error('Failed to delete event photos:', err);
   }
 }
 
