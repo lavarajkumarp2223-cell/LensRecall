@@ -20,16 +20,26 @@ import { getPhotosForEvent, getAllPhotosFromStorage } from '../../../lib/photo-s
 type CameraStatus = 'idle' | 'requesting' | 'active' | 'denied' | 'error';
 
 function SearchContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get('token') || '';
   const eventId = searchParams.get('eventId') || '';
-  const router = useRouter();
+  const queryName = searchParams.get('name');
+  const queryCount = searchParams.get('count');
+  const queryEventId = searchParams.get('eventId');
+
+  const tokenDerivedName = token
+    ? token.replace(/^qr_/, '').replace(/__\d+$/, '').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+    : 'Testing';
+
+  const defaultName = queryName || (tokenDerivedName !== 'Live Event' && tokenDerivedName ? tokenDerivedName : 'Testing');
+  const defaultCount = queryCount ? parseInt(queryCount, 10) : 10;
 
   // Dynamic event lookup
   const [eventInfo, setEventInfo] = useState<{ id: string; name: string; photoCount: number; token: string }>({
-    id: eventId,
-    name: 'Event Shoot',
-    photoCount: 0,
+    id: queryEventId || eventId || token || 'evt_testing',
+    name: defaultName,
+    photoCount: defaultCount,
     token,
   });
 
@@ -51,12 +61,12 @@ function SearchContent() {
       if (raw) {
         const events = JSON.parse(raw);
         if (Array.isArray(events)) {
-          const found = events.find((e: any) => e.id === eventId || e.qrToken === token) || events[0];
+          const found = events.find((e: any) => e.id === eventId || e.qrToken === token || (queryEventId && e.id === queryEventId)) || events[0];
           if (found) {
             setEventInfo({
               id: found.id,
               name: found.name,
-              photoCount: found.photoCount || 0,
+              photoCount: found.photoCount || 10,
               token: found.qrToken || token,
             });
           }
@@ -65,7 +75,7 @@ function SearchContent() {
     } catch {
       // ignore
     }
-  }, [eventId, token]);
+  }, [eventId, token, queryEventId]);
 
   // Safely attach stream to video element whenever video element or status changes
   useEffect(() => {
@@ -198,8 +208,13 @@ function SearchContent() {
   };
 
   const handleOpenGallery = () => {
-    const targetEventId = eventInfo.id || eventId;
-    router.push(`/gallery/${targetEventId}?token=${token || eventInfo.token}`);
+    const targetEventId = eventInfo.id || eventId || token;
+    const targetParams = new URLSearchParams({
+      token: token || eventInfo.token,
+      name: eventInfo.name,
+      count: String(matchCount || eventInfo.photoCount || 10),
+    });
+    router.push(`/gallery/${targetEventId}?${targetParams.toString()}`);
   };
 
   // Hidden file input for uploading from device

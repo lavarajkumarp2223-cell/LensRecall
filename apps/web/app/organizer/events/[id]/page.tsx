@@ -95,7 +95,11 @@ export default function EventDetailPage() {
   }, [eventId]);
 
   const qrToken = event?.qrToken || `qr_${eventId}`;
-  const guestUrl = `${origin}/e/${qrToken}`;
+  const eventName = encodeURIComponent(event?.name || 'Testing');
+  const eventVenue = encodeURIComponent(event?.location || 'Galugondapeta');
+  const eventDate = encodeURIComponent(event?.date || '2026-09-12');
+  const eventCount = event?.photoCount || storedPhotos.length || 10;
+  const guestUrl = `${origin}/e/${qrToken}?name=${eventName}&venue=${eventVenue}&date=${eventDate}&count=${eventCount}&eventId=${event?.id || eventId}`;
 
   useEffect(() => {
     if (!guestUrl) return;

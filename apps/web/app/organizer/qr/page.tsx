@@ -173,7 +173,10 @@ function QrStudioContent() {
     accentColor: '#d97706',
   };
 
-  const guestUrl = `${origin}/e/${currentEvent.token}`;
+  const eventName = encodeURIComponent(currentEvent.name || 'Testing');
+  const eventVenue = encodeURIComponent(currentEvent.venue || 'Galugondapeta');
+  const eventDate = encodeURIComponent(currentEvent.date || '2026-09-12');
+  const guestUrl = `${origin}/e/${currentEvent.token}?name=${eventName}&venue=${eventVenue}&date=${eventDate}&eventId=${currentEvent.id}&count=10`;
 
   // Generate scannable QR Code
   useEffect(() => {
