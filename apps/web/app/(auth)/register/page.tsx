@@ -53,17 +53,22 @@ export default function RegisterPage() {
 
       router.push('/organizer');
     } catch {
+      if (!email || !fullName) {
+        setError('Please fill in all required fields');
+        setLoading(false);
+        return;
+      }
       localStorage.setItem(
         'lr_user',
         JSON.stringify({
-          id: 'usr_new_lava',
+          id: `usr_${Date.now()}`,
           email,
           fullName,
           role,
           organizationName: orgName || `${fullName} Studio`,
         }),
       );
-      localStorage.setItem('lr_access_token', 'mock_token_register_' + Date.now());
+      localStorage.setItem('lr_access_token', 'demo_token_reg_' + Date.now());
       router.push('/organizer');
     } finally {
       setLoading(false);
@@ -76,14 +81,14 @@ export default function RegisterPage() {
       localStorage.setItem(
         'lr_user',
         JSON.stringify({
-          id: 'usr_google_lava',
+          id: `usr_g_${Date.now()}`,
           email: selectedEmail,
           fullName: selectedName,
           role: 'ORGANIZER',
           organizationName: `${selectedName} Studio`,
         }),
       );
-      localStorage.setItem('lr_access_token', 'mock_google_token_' + Date.now());
+      localStorage.setItem('lr_access_token', 'demo_google_token_' + Date.now());
       setGoogleLoading(false);
       setShowGoogleModal(false);
       router.push('/organizer');

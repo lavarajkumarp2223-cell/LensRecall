@@ -43,20 +43,9 @@ function VerifyContent() {
           router.push(data.data.user.role === 'GUEST' ? '/' : '/organizer');
         }, 1200);
       } catch (err: unknown) {
-        // Demo fallback: simulate login for testing
-        localStorage.setItem(
-          'lr_user',
-          JSON.stringify({
-            id: 'usr_guest_magic',
-            email,
-            fullName: email.split('@')[0],
-            role: 'ORGANIZER',
-          }),
-        );
-        setStatus('success');
-        setTimeout(() => {
-          router.push('/organizer');
-        }, 1200);
+        const errorMsg = err instanceof Error ? err.message : 'Verification failed';
+        setStatus('error');
+        setErrorMessage(errorMsg || 'Could not verify magic link. Please try signing in with your password or register a new account.');
       }
     };
 

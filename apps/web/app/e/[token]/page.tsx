@@ -52,9 +52,9 @@ function GuestLandingContent() {
     date: queryDate || '2026-09-12',
     venue: queryVenue || 'Galugondapeta',
     coverUrl: 'https://images.unsplash.com/photo-1519741497674-611481863552?w=1200&auto=format&fit=crop&q=80',
-    photosCount: queryCount ? parseInt(queryCount, 10) : 10,
+    photosCount: queryCount ? parseInt(queryCount, 10) : 0,
     guestsScanned: 0,
-    organizerName: 'Lava Kumar Studio',
+    organizerName: 'LensRecall Studio',
   });
 
   const [step, setStep] = useState<'landing' | 'consent' | 'auth'>('landing');
@@ -68,47 +68,34 @@ function GuestLandingContent() {
     verified?: boolean;
   } | null>(null);
 
-  // Load event details from query params or localStorage
+  // Load event details from localStorage (only if exact match found — no fallbacks)
   useEffect(() => {
     try {
       const raw = localStorage.getItem('lr_organizer_events');
       if (raw) {
         const events = JSON.parse(raw);
         if (Array.isArray(events)) {
-          const found = events.find((e: any) => e.qrToken === token || e.id === token || (queryEventId && e.id === queryEventId)) || events[0];
+          // Strict matching only — no || events[0] fallback
+          const found = events.find((e: any) => e.qrToken === token || e.id === token || (queryEventId && e.id === queryEventId));
           if (found) {
             setEvent({
               id: found.id,
               name: found.name,
               date: found.date || '2026-09-12',
-              venue: found.location || 'Galugondapeta',
+              venue: found.location || queryVenue || 'Galugondapeta',
               coverUrl: found.coverUrl || 'https://images.unsplash.com/photo-1519741497674-611481863552?w=1200',
-              photosCount: found.photoCount || 10,
+              photosCount: found.photoCount || 0,
               guestsScanned: found.searchCount || 0,
-              organizerName: 'Lava Kumar Studio',
+              organizerName: 'LensRecall Studio',
             });
-            return;
           }
         }
       }
-
-      // If on mobile device with empty localStorage, seed current event into local storage
-      const initialEvent = {
-        id: queryEventId || token || 'evt_testing',
-        name: defaultName,
-        date: queryDate || '2026-09-12',
-        location: queryVenue || 'Galugondapeta',
-        category: 'Celebration',
-        photoCount: queryCount ? parseInt(queryCount, 10) : 10,
-        searchCount: 0,
-        status: 'ACTIVE',
-        qrToken: token,
-      };
-      localStorage.setItem('lr_organizer_events', JSON.stringify([initialEvent]));
+      // NOTE: We no longer seed events into localStorage on mobile — guest flow works from URL params only
     } catch {
       // ignore
     }
-  }, [token, queryName, queryVenue, queryDate, queryCount, queryEventId, defaultName]);
+  }, [token, queryEventId, queryVenue]);
 
   // Check if guest has previously verified face on this device
   useEffect(() => {

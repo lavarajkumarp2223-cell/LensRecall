@@ -19,7 +19,6 @@ import {
 import {
   StoredPhoto,
   getPhotosForEvent,
-  getAllPhotosFromStorage,
   savePhotoToStorage,
   fileToDataUrl,
 } from '../../../lib/photo-storage';
@@ -97,7 +96,8 @@ function GalleryContent() {
       if (raw) {
         const events = JSON.parse(raw);
         if (Array.isArray(events)) {
-          const found = events.find((e: any) => e.id === eventId || e.qrToken === token) || events[0];
+          // Strict matching only — no || events[0] fallback
+          const found = events.find((e: any) => e.id === eventId || e.qrToken === token);
           if (found) {
             setEventInfo({
               id: found.id,
@@ -120,10 +120,7 @@ function GalleryContent() {
       const targetEventId = eventInfo.id || eventId;
       let stored: StoredPhoto[] = await getPhotosForEvent(targetEventId);
 
-      if (!stored || stored.length === 0) {
-        stored = await getAllPhotosFromStorage();
-      }
-
+      // No fallback to getAllPhotosFromStorage — strict event isolation only
       if ((!stored || stored.length === 0) && targetEventId) {
         try {
           const raw = localStorage.getItem('lr_photos_' + targetEventId);
@@ -214,16 +211,39 @@ function GalleryContent() {
     setZipProgress(0);
     setZipReady(false);
 
+    // Actually create a downloadable bundle from the displayed photos
+    const photosToDownload = isSelectMode && selectedIds.length > 0
+      ? displayPhotos.filter((p) => selectedIds.includes(p.id))
+      : displayPhotos;
+
+    if (photosToDownload.length === 0) {
+      setZipProgress(100);
+      setZipReady(true);
+      return;
+    }
+
+    // Simulate processing progress then trigger real downloads
+    let progress = 0;
     const interval = setInterval(() => {
-      setZipProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setZipReady(true);
-          return 100;
-        }
-        return prev + 25;
-      });
-    }, 250);
+      progress += 20;
+      setZipProgress(Math.min(progress, 100));
+      if (progress >= 100) {
+        clearInterval(interval);
+        setZipReady(true);
+
+        // Trigger individual downloads for each photo (real data URLs)
+        photosToDownload.forEach((photo, idx) => {
+          setTimeout(() => {
+            const a = document.createElement('a');
+            a.href = photo.url;
+            a.download = photo.filename || `LensRecall_Photo_${idx + 1}.jpg`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+          }, idx * 300);
+        });
+      }
+    }, 200);
   };
 
   return (

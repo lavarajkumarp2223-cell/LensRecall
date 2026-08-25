@@ -15,7 +15,7 @@ import {
   Upload,
   RefreshCw,
 } from 'lucide-react';
-import { getPhotosForEvent, getAllPhotosFromStorage } from '../../../lib/photo-storage';
+import { getPhotosForEvent } from '../../../lib/photo-storage';
 
 type CameraStatus = 'idle' | 'requesting' | 'active' | 'denied' | 'error';
 
@@ -33,7 +33,7 @@ function SearchContent() {
     : 'Testing';
 
   const defaultName = queryName || (tokenDerivedName !== 'Live Event' && tokenDerivedName ? tokenDerivedName : 'Testing');
-  const defaultCount = queryCount ? parseInt(queryCount, 10) : 10;
+  const defaultCount = queryCount ? parseInt(queryCount, 10) : 0;
 
   // Dynamic event lookup
   const [eventInfo, setEventInfo] = useState<{ id: string; name: string; photoCount: number; token: string }>({
@@ -61,12 +61,12 @@ function SearchContent() {
       if (raw) {
         const events = JSON.parse(raw);
         if (Array.isArray(events)) {
-          const found = events.find((e: any) => e.id === eventId || e.qrToken === token || (queryEventId && e.id === queryEventId)) || events[0];
+          const found = events.find((e: any) => e.id === eventId || e.qrToken === token || (queryEventId && e.id === queryEventId));
           if (found) {
             setEventInfo({
               id: found.id,
               name: found.name,
-              photoCount: found.photoCount || 10,
+              photoCount: found.photoCount || 0,
               token: found.qrToken || token,
             });
           }
@@ -174,16 +174,15 @@ function SearchContent() {
     // Retrieve real photos stored in IndexedDB for this event
     const targetEventId = eventInfo.id || eventId;
     let storedPhotos = await getPhotosForEvent(targetEventId);
-    if (!storedPhotos || storedPhotos.length === 0) {
-      storedPhotos = await getAllPhotosFromStorage();
-    }
+    // No fallback to getAllPhotosFromStorage — strict event isolation
 
     setTimeout(() => setSearchStep(`Extracting 128-D facial landmarks with Amazon Rekognition...`), 500);
     setTimeout(() => setSearchStep(`Querying collection partition lensrecall_${targetEventId}...`), 1300);
     setTimeout(() => setSearchStep(`Cross-matching facial vectors across ${storedPhotos.length || eventInfo.photoCount} event photographs...`), 2200);
 
     setTimeout(() => {
-      const matched = storedPhotos.length > 0 ? storedPhotos.length : Math.max(1, eventInfo.photoCount);
+      // Show REAL count — 0 if no photos exist for this event
+      const matched = storedPhotos.length;
       setMatchCount(matched);
       setSearchComplete(true);
 

@@ -28,22 +28,13 @@ export async function GET(req: Request) {
     const eventId = searchParams.get('eventId') || '';
     const store = globalThis.__GLOBAL_EVENT_PHOTOS || {};
 
+    // Strict event ID matching ONLY — no fuzzy matching, no cross-event leaks
     if (eventId && store[eventId] && store[eventId].length > 0) {
       return NextResponse.json({ photos: store[eventId] });
     }
 
-    // Try fuzzy match on eventId
-    for (const key of Object.keys(store)) {
-      if (eventId && (key.includes(eventId) || eventId.includes(key))) {
-        if (store[key] && store[key].length > 0) {
-          return NextResponse.json({ photos: store[key] });
-        }
-      }
-    }
-
-    // Fallback: Return all photos stored across any event
-    const allPhotos = Object.values(store).flat();
-    return NextResponse.json({ photos: allPhotos });
+    // No match found for this specific event — return empty, never return other events' photos
+    return NextResponse.json({ photos: [] });
   } catch {
     return NextResponse.json({ photos: [] });
   }

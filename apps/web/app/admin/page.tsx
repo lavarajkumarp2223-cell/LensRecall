@@ -52,6 +52,8 @@ function AdminCockpitContent() {
   const [planFilter, setPlanFilter] = useState('ALL');
   const [eventsCount, setEventsCount] = useState(0);
   const [photosCount, setPhotosCount] = useState(0);
+  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
 
   // Modals & Action States
   const [showAddStudioModal, setShowAddStudioModal] = useState(false);
@@ -71,6 +73,21 @@ function AdminCockpitContent() {
     { name: 'zip-bundler-export-queue', active: 0, completed: 310, failed: 0, status: 'RUNNING' },
   ]);
 
+  // Admin role check
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('lr_user');
+      if (raw) {
+        const user = JSON.parse(raw);
+        // Allow ORGANIZER and ADMIN roles to access admin panel
+        if (user.role === 'ORGANIZER' || user.role === 'ADMIN') {
+          setIsAuthorized(true);
+        }
+      }
+    } catch {}
+    setAuthChecked(true);
+  }, []);
+
   // Sync tab with URL search param
   useEffect(() => {
     if (queryTab) {
@@ -82,6 +99,24 @@ function AdminCockpitContent() {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
   };
+
+  // Show access denied if not authorized
+  if (authChecked && !isAuthorized) {
+    return (
+      <div className="min-h-screen bg-[#0a0a12] flex items-center justify-center p-6">
+        <div className="text-center space-y-4 max-w-md">
+          <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/30 flex items-center justify-center mx-auto text-red-400">
+            <X size={32} />
+          </div>
+          <h1 className="text-2xl font-black text-white">Access Denied</h1>
+          <p className="text-sm text-slate-400">You do not have admin privileges to access this page. Please sign in with an authorized admin account.</p>
+          <Link href="/login" className="inline-block px-6 py-3 rounded-xl bg-indigo-600 text-white text-sm font-bold hover:bg-indigo-700 transition-colors">
+            Sign In
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   // Load real statistics and studio orgs from localStorage
   useEffect(() => {

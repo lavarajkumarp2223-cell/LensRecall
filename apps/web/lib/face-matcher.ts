@@ -151,11 +151,8 @@ export async function filterPhotosBySelfie(
   similarityThreshold = 84
 ): Promise<Array<any & { matchScore: number; isMatch: boolean }>> {
   if (!selfieUrl || photos.length === 0) {
-    return photos.map((p, idx) => ({
-      ...p,
-      matchScore: Math.max(90, +(99.8 - idx * 0.5).toFixed(1)),
-      isMatch: true,
-    }));
+    // No selfie provided — cannot match any photos. Return empty.
+    return [];
   }
 
   const selfieVectors = await extractMultiRegionVectors(selfieUrl);

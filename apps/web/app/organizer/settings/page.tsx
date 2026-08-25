@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Building,
   Users,
@@ -11,6 +11,7 @@ import {
   Loader2,
   Sparkles,
 } from 'lucide-react';
+import { getCurrentUser } from '../../../lib/events-storage';
 
 interface Member {
   id: string;
@@ -24,10 +25,10 @@ const INITIAL_MEMBERS: Member[] = [];
 
 export default function OrganizationSettingsPage() {
   const [activeTab, setActiveTab] = useState<'profile' | 'team' | 'billing'>('profile');
-  const [orgName, setOrgName] = useState('My Studio');
-  const [orgSlug, setOrgSlug] = useState('my-studio');
-  const [contactEmail, setContactEmail] = useState('contact@apexevents.com');
-  const [watermark, setWatermark] = useState('© Apex Events & Media 2026');
+  const [orgName, setOrgName] = useState('');
+  const [orgSlug, setOrgSlug] = useState('');
+  const [contactEmail, setContactEmail] = useState('');
+  const [watermark, setWatermark] = useState('');
   const [saved, setSaved] = useState(false);
 
   // Team state
@@ -36,6 +37,18 @@ export default function OrganizationSettingsPage() {
   const [inviteRole, setInviteRole] = useState<'ADMIN' | 'PHOTOGRAPHER' | 'MEMBER'>('PHOTOGRAPHER');
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteSuccess, setInviteSuccess] = useState(false);
+
+  // Initialize from logged-in user
+  useEffect(() => {
+    const user = getCurrentUser();
+    if (user) {
+      const studioName = user.organizationName || `${user.fullName} Studio`;
+      setOrgName(studioName);
+      setOrgSlug(studioName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''));
+      setContactEmail(user.email);
+      setWatermark(`© ${studioName} ${new Date().getFullYear()}`);
+    }
+  }, []);
 
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();

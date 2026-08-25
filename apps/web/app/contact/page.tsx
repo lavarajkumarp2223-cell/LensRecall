@@ -29,6 +29,20 @@ export default function ContactPage() {
     e.preventDefault();
     setLoading(true);
 
+    // Open mailto with form data as a real fallback since there's no backend API
+    const subjectMap: Record<string, string> = {
+      STUDIO_INQUIRY: 'Studio Inquiry',
+      TECHNICAL_SUPPORT: 'Technical Support',
+      BILLING: 'Billing Question',
+      PARTNERSHIP: 'Partnership Proposal',
+      OTHER: 'General Question',
+    };
+    const mailSubject = encodeURIComponent(`[LensRecall] ${subjectMap[subject] || subject}`);
+    const mailBody = encodeURIComponent(
+      `Name: ${name}\nEmail: ${email}\nPhone: ${phone || 'N/A'}\n\n${message}`
+    );
+    window.open(`mailto:lookalivesolutions@gmail.com?subject=${mailSubject}&body=${mailBody}`, '_blank');
+
     setTimeout(() => {
       setLoading(false);
       setSubmitted(true);

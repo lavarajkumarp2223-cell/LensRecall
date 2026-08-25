@@ -43,18 +43,24 @@ export default function LoginPage() {
 
       router.push('/organizer');
     } catch {
-      // Local fallback for studio account
+      // Local/demo fallback — uses the ENTERED email, not hardcoded values
+      if (!email) {
+        setError('Please enter your email address');
+        setLoading(false);
+        return;
+      }
+      const derivedName = email.split('@')[0]?.replace(/[._]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) || 'User';
       localStorage.setItem(
         'lr_user',
         JSON.stringify({
-          id: 'usr_lavakumar',
-          email: email || 'lookalivesolutions@gmail.com',
-          fullName: 'Lava Kumar',
+          id: `usr_${Date.now()}`,
+          email,
+          fullName: derivedName,
           role: 'ORGANIZER',
-          organizationName: 'Lava Kumar Studio',
+          organizationName: `${derivedName} Studio`,
         }),
       );
-      localStorage.setItem('lr_access_token', 'mock_token_lava_' + Date.now());
+      localStorage.setItem('lr_access_token', 'demo_token_' + Date.now());
       router.push('/organizer');
     } finally {
       setLoading(false);
@@ -86,14 +92,14 @@ export default function LoginPage() {
       localStorage.setItem(
         'lr_user',
         JSON.stringify({
-          id: 'usr_google_lava',
+          id: `usr_g_${Date.now()}`,
           email: selectedEmail,
           fullName: selectedName,
           role: 'ORGANIZER',
           organizationName: `${selectedName} Studio`,
         }),
       );
-      localStorage.setItem('lr_access_token', 'mock_google_token_' + Date.now());
+      localStorage.setItem('lr_access_token', 'demo_google_token_' + Date.now());
       setGoogleLoading(false);
       setShowGoogleModal(false);
       router.push('/organizer');

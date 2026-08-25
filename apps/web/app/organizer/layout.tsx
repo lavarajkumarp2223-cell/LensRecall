@@ -32,7 +32,7 @@ const NAV_ITEMS = [
   { label: 'Contact Support', href: '/contact', icon: HelpCircle },
 ];
 
-import { getCurrentUser, UserSession } from '../../lib/events-storage';
+import { getCurrentUser, clearAllUserData, UserSession } from '../../lib/events-storage';
 
 export default function OrganizerLightLayout({
   children,
@@ -42,24 +42,34 @@ export default function OrganizerLightLayout({
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [user, setUser] = useState<UserSession>({
-    fullName: 'Lava Kumar',
-    email: 'lookalivesolutions@gmail.com',
-    role: 'ORGANIZER',
-    organizationName: 'Lava Kumar Studio',
-  });
+  const [user, setUser] = useState<UserSession | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
 
+  // Auth guard: redirect to login if no user session
   useEffect(() => {
     const currentUser = getCurrentUser();
+    if (!currentUser) {
+      router.push('/login');
+      return;
+    }
     setUser(currentUser);
-  }, []);
+    setAuthChecked(true);
+  }, [router]);
 
   const handleLogout = () => {
-    localStorage.removeItem('lr_access_token');
-    localStorage.removeItem('lr_refresh_token');
-    localStorage.removeItem('lr_user');
+    // Clear ALL LensRecall data to prevent session leaks between users
+    clearAllUserData();
     router.push('/login');
   };
+
+  // Show nothing while checking auth to prevent flash of content
+  if (!authChecked || !user) {
+    return (
+      <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center">
+        <div className="text-sm text-slate-400">Checking authentication...</div>
+      </div>
+    );
+  }
 
   const userInitial = user.fullName ? user.fullName[0]?.toUpperCase() : 'U';
 

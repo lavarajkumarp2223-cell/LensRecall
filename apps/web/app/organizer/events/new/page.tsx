@@ -122,7 +122,7 @@ export default function NewEventPage() {
       qrToken: `qr_${name.toLowerCase().replace(/[^a-z0-9]/g, '_')}_${Date.now().toString().slice(-4)}`,
       coverUrl: coverPhotoUrl || 'https://images.unsplash.com/photo-1519741497674-611481863552?w=800',
       description,
-      ownerEmail: user.email,
+      ownerEmail: user?.email || '',
     };
 
     saveUserEvent(newEvent);

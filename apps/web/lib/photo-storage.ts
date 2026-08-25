@@ -92,54 +92,19 @@ export async function getAllPhotosFromStorage(): Promise<StoredPhoto[]> {
 
 export async function getPhotosForEvent(eventId: string): Promise<StoredPhoto[]> {
   try {
-    if (!eventId || eventId === 'undefined' || eventId === 'all') {
+    if (!eventId || eventId === 'undefined') {
+      return [];
+    }
+
+    if (eventId === 'all') {
       return getAllPhotosFromStorage();
     }
 
     const all = await getAllPhotosFromStorage();
 
-    // 1. Direct match on eventId
+    // Strict match on eventId ONLY — no fuzzy matching, no cross-event leaks
     const directMatches = all.filter((p) => p.eventId === eventId);
-    if (directMatches.length > 0) {
-      return directMatches;
-    }
-
-    // 2. Resolve eventId against localStorage events (e.g. if token or prefix was passed)
-    try {
-      const rawEvents = localStorage.getItem('lr_organizer_events');
-      if (rawEvents) {
-        const events = JSON.parse(rawEvents);
-        if (Array.isArray(events)) {
-          const matchedEvent = events.find(
-            (e: any) =>
-              e.id === eventId ||
-              e.qrToken === eventId ||
-              eventId.includes(e.id) ||
-              (e.qrToken && eventId.includes(e.qrToken)),
-          );
-          if (matchedEvent) {
-            const byResolvedId = all.filter((p) => p.eventId === matchedEvent.id);
-            if (byResolvedId.length > 0) return byResolvedId;
-          }
-        }
-      }
-    } catch {}
-
-    // 3. Fallback: If cloud API has photos specifically for this eventId
-    if (typeof window !== 'undefined') {
-      try {
-        const res = await fetch(`/api/photos?eventId=${encodeURIComponent(eventId)}`);
-        if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data.photos) && data.photos.length > 0) {
-            return data.photos;
-          }
-        }
-      } catch {}
-    }
-
-    // Event has no photos yet
-    return [];
+    return directMatches;
   } catch {
     return [];
   }

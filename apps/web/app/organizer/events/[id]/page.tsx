@@ -30,6 +30,8 @@ import {
   deletePhotosForEvent,
 } from '../../../../lib/photo-storage';
 
+import { getUserEvents, deleteUserEvent, saveUserEvent } from '../../../../lib/events-storage';
+
 interface EventData {
   id: string;
   name: string;
@@ -92,20 +94,17 @@ export default function EventDetailPage() {
   const [showCoverModal, setShowCoverModal] = useState(false);
   const coverFileInputRef = useRef<HTMLInputElement>(null);
 
-  // Load real event from localStorage and stored photos
+  // Load real event from user-scoped events and stored photos
   useEffect(() => {
     if (typeof window !== 'undefined') {
       setOrigin(window.location.origin);
     }
 
     try {
-      const raw = localStorage.getItem('lr_organizer_events');
-      if (raw) {
-        const events: EventData[] = JSON.parse(raw);
-        const found = events.find((e) => e.id === eventId) || events[0];
-        if (found) {
-          setEvent(found);
-        }
+      const userEvents = getUserEvents();
+      const found = userEvents.find((e) => e.id === eventId);
+      if (found) {
+        setEvent(found as EventData);
       }
     } catch {
       // ignore
@@ -146,16 +145,10 @@ export default function EventDetailPage() {
   const handleUpdateCover = (newCoverUrl: string) => {
     if (!newCoverUrl || !displayEvent.id) return;
     try {
-      const raw = localStorage.getItem('lr_organizer_events');
-      if (raw) {
-        const events: EventData[] = JSON.parse(raw);
-        const updated = events.map((e) =>
-          e.id === displayEvent.id ? { ...e, coverUrl: newCoverUrl } : e
-        );
-        localStorage.setItem('lr_organizer_events', JSON.stringify(updated));
-      }
-      setEvent((prev) => (prev ? { ...prev, coverUrl: newCoverUrl } : null));
+      const updated = { ...displayEvent, coverUrl: newCoverUrl } as any;
+      saveUserEvent(updated);
     } catch {}
+    setEvent((prev) => (prev ? { ...prev, coverUrl: newCoverUrl } : null));
     setShowCoverModal(false);
   };
 
@@ -227,12 +220,7 @@ export default function EventDetailPage() {
   const handleDeleteEvent = () => {
     if (confirm(`Are you sure you want to permanently delete event "${displayEvent.name}" and all its photos?`)) {
       try {
-        const raw = localStorage.getItem('lr_organizer_events');
-        if (raw) {
-          const events: EventData[] = JSON.parse(raw);
-          const updated = events.filter((e) => e.id !== displayEvent.id);
-          localStorage.setItem('lr_organizer_events', JSON.stringify(updated));
-        }
+        deleteUserEvent(displayEvent.id);
         deletePhotosForEvent(displayEvent.id);
       } catch {}
       router.push('/organizer/events');

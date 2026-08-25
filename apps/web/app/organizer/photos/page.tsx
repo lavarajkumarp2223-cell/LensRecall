@@ -19,7 +19,7 @@ import {
   deletePhotoFromStorage,
   fileToDataUrl,
 } from '../../../lib/photo-storage';
-import { getUserEvents } from '../../../lib/events-storage';
+import { getUserEvents, saveUserEvent } from '../../../lib/events-storage';
 
 interface UploadQueueItem {
   id: string;
@@ -165,15 +165,12 @@ function PhotosContent() {
               prev.map((q) => (q.id === item.id ? { ...q, status: 'DONE', progress: 100 } : q)),
             );
 
-            // Update photoCount in local event storage
+            // Update photoCount via saveUserEvent for user isolation
             try {
-              const rawEvents = localStorage.getItem('lr_organizer_events');
-              if (rawEvents) {
-                const evts = JSON.parse(rawEvents);
-                const updated = evts.map((e: any) =>
-                  e.id === selectedEvent ? { ...e, photoCount: (e.photoCount || 0) + 1 } : e,
-                );
-                localStorage.setItem('lr_organizer_events', JSON.stringify(updated));
+              const userEvents = getUserEvents();
+              const evt = userEvents.find((e: any) => e.id === selectedEvent);
+              if (evt) {
+                saveUserEvent({ ...evt, photoCount: (evt.photoCount || 0) + 1 });
               }
             } catch {}
           }, 300);
@@ -188,15 +185,12 @@ function PhotosContent() {
     setPhotosList(updated);
     if (activePhoto?.id === id) setActivePhoto(null);
 
-    // Update photoCount in storage
+    // Update photoCount via saveUserEvent for user isolation
     try {
-      const rawEvents = localStorage.getItem('lr_organizer_events');
-      if (rawEvents) {
-        const evts = JSON.parse(rawEvents);
-        const next = evts.map((e: any) =>
-          e.id === selectedEvent ? { ...e, photoCount: Math.max(0, updated.length) } : e,
-        );
-        localStorage.setItem('lr_organizer_events', JSON.stringify(next));
+      const userEvents = getUserEvents();
+      const evt = userEvents.find((e: any) => e.id === selectedEvent);
+      if (evt) {
+        saveUserEvent({ ...evt, photoCount: Math.max(0, updated.length) });
       }
     } catch {}
   };

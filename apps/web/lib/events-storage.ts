@@ -21,14 +21,9 @@ export interface UserSession {
   avatarUrl?: string;
 }
 
-export function getCurrentUser(): UserSession {
+export function getCurrentUser(): UserSession | null {
   if (typeof window === 'undefined') {
-    return {
-      email: 'lookalivesolutions@gmail.com',
-      fullName: 'Lava Kumar',
-      role: 'ORGANIZER',
-      organizationName: 'Lava Kumar Studio',
-    };
+    return null;
   }
   try {
     const raw = localStorage.getItem('lr_user');
@@ -46,12 +41,7 @@ export function getCurrentUser(): UserSession {
       }
     }
   } catch {}
-  return {
-    email: 'lookalivesolutions@gmail.com',
-    fullName: 'Lava Kumar',
-    role: 'ORGANIZER',
-    organizationName: 'Lava Kumar Studio',
-  };
+  return null;
 }
 
 export function getAllEvents(): EventItem[] {
@@ -72,12 +62,13 @@ export function getAllEvents(): EventItem[] {
  */
 export function getUserEvents(): EventItem[] {
   const user = getCurrentUser();
+  if (!user) return [];
   const all = getAllEvents();
   // Filter strictly by ownerEmail matching logged-in user
   return all.filter((e) => {
     if (!e.ownerEmail) {
-      // Default unassigned events to lookalivesolutions@gmail.com
-      return user.email === 'lookalivesolutions@gmail.com';
+      // Legacy unassigned events: assign to user if they're the only one
+      return all.length > 0 && !all.some((ev) => ev.ownerEmail && ev.ownerEmail !== user.email);
     }
     return e.ownerEmail.toLowerCase() === user.email.toLowerCase();
   });
@@ -86,6 +77,7 @@ export function getUserEvents(): EventItem[] {
 export function saveUserEvent(newEvent: EventItem): void {
   if (typeof window === 'undefined') return;
   const user = getCurrentUser();
+  if (!user) return;
   const eventWithUser: EventItem = {
     ...newEvent,
     ownerEmail: newEvent.ownerEmail || user.email,
@@ -106,3 +98,20 @@ export function deleteUserEvent(eventId: string): void {
   const updated = all.filter((e) => e.id !== eventId);
   localStorage.setItem('lr_organizer_events', JSON.stringify(updated));
 }
+
+/**
+ * Clears ALL LensRecall-related data from localStorage.
+ * Used during logout to prevent session leaks between users.
+ */
+export function clearAllUserData(): void {
+  if (typeof window === 'undefined') return;
+  const keysToRemove: string[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && (key.startsWith('lr_') || key.startsWith('lensrecall'))) {
+      keysToRemove.push(key);
+    }
+  }
+  keysToRemove.forEach((key) => localStorage.removeItem(key));
+}
+
