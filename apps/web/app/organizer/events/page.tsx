@@ -14,6 +14,8 @@ import {
   Image as ImageIcon,
   Clock,
   Trash2,
+  ExternalLink,
+  Eye,
 } from 'lucide-react';
 
 export interface EventItem {
@@ -230,39 +232,52 @@ export default function EventsListingPage() {
                 </div>
 
                 {/* Actions Bar */}
-                <div className="flex items-center gap-2 pt-1">
-                  <Link
-                    href={`/organizer/events/${event.id}`}
-                    className="flex-1 bg-slate-900 hover:bg-indigo-600 text-white font-bold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm group-hover:bg-indigo-600"
-                  >
-                    Manage Event
-                    <ArrowRight size={13} />
-                  </Link>
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-center gap-2">
+                    <Link
+                      href={`/organizer/events/${event.id}`}
+                      className="flex-1 bg-slate-900 hover:bg-indigo-600 text-white font-bold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm group-hover:bg-indigo-600"
+                    >
+                      Manage Event
+                      <ArrowRight size={13} />
+                    </Link>
 
-                  <Link
-                    href={`/organizer/qr?eventId=${event.id}`}
-                    className="p-2.5 rounded-xl bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 text-slate-600 hover:text-indigo-600 transition-colors"
-                    title="View & Print Standee QR"
-                  >
-                    <QrCode size={16} />
-                  </Link>
+                    <Link
+                      href={`/organizer/qr?eventId=${event.id}`}
+                      className="p-2.5 rounded-xl bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 text-slate-600 hover:text-indigo-600 transition-colors"
+                      title="View & Print Standee QR"
+                    >
+                      <QrCode size={16} />
+                    </Link>
 
-                  <Link
-                    href={`/organizer/photos?eventId=${event.id}`}
-                    className="p-2.5 rounded-xl bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 text-slate-600 hover:text-indigo-600 transition-colors"
-                    title="Upload Photos"
-                  >
-                    <Upload size={16} />
-                  </Link>
+                    <Link
+                      href={`/organizer/photos?eventId=${event.id}`}
+                      className="p-2.5 rounded-xl bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 text-slate-600 hover:text-indigo-600 transition-colors"
+                      title="Upload Photos"
+                    >
+                      <Upload size={16} />
+                    </Link>
 
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteEvent(event.id, event.name)}
-                    className="p-2.5 rounded-xl bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 hover:text-red-700 transition-colors cursor-pointer"
-                    title="Delete Event"
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteEvent(event.id, event.name)}
+                      className="p-2.5 rounded-xl bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 hover:text-red-700 transition-colors cursor-pointer"
+                      title="Delete Event"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+
+                  {/* Direct Test Guest View button */}
+                  <Link
+                    href={`/e/${event.qrToken || event.id}?name=${encodeURIComponent(event.name)}&venue=${encodeURIComponent(event.location)}&date=${encodeURIComponent(event.date)}&count=${event.photoCount}&eventId=${event.id}`}
+                    target="_blank"
+                    className="w-full py-2 px-3 rounded-xl bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors block text-center"
                   >
-                    <Trash2 size={16} />
-                  </button>
+                    <Eye size={14} />
+                    <span>Test Guest View (Face Search)</span>
+                    <ExternalLink size={12} className="opacity-70" />
+                  </Link>
                 </div>
               </div>
             </div>
