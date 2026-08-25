@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   Building2,
@@ -11,7 +11,6 @@ import {
   CheckCircle2,
   Search,
 } from 'lucide-react';
-
 
 interface StudioOrg {
   id: string;
@@ -26,12 +25,46 @@ interface StudioOrg {
   joinedDate: string;
 }
 
-const INITIAL_ORGS: StudioOrg[] = [];
-
 export default function SuperAdminLightPage() {
-  const [orgs, setOrgs] = useState<StudioOrg[]>(INITIAL_ORGS);
+  const [orgs, setOrgs] = useState<StudioOrg[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [planFilter, setPlanFilter] = useState('ALL');
+  const [eventsCount, setEventsCount] = useState(0);
+  const [photosCount, setPhotosCount] = useState(0);
+
+  // Load real statistics from localStorage
+  useEffect(() => {
+    try {
+      const rawEvents = localStorage.getItem('lr_organizer_events');
+      if (rawEvents) {
+        const parsed = JSON.parse(rawEvents);
+        if (Array.isArray(parsed)) {
+          setEventsCount(parsed.length);
+          const totalPhotos = parsed.reduce((acc: number, curr: any) => acc + (curr.photoCount || 0), 0);
+          setPhotosCount(totalPhotos);
+
+          if (parsed.length > 0) {
+            setOrgs([
+              {
+                id: 'org_primary',
+                name: 'Lava Kumar Photography Studio',
+                plan: 'PRO',
+                owner: 'lavakumar',
+                eventsCount: parsed.length,
+                photosCount: totalPhotos,
+                storageMB: totalPhotos * 3.5,
+                mrrINR: 0,
+                status: 'ACTIVE',
+                joinedDate: new Date().toLocaleDateString(),
+              },
+            ]);
+          }
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
 
   const filteredOrgs = orgs.filter((org) => {
     const matchesSearch =
@@ -83,7 +116,7 @@ export default function SuperAdminLightPage() {
         </div>
       </div>
 
-      {/* ── Global Key Performance Metrics ─────────────────────────────────── */}
+      {/* ── Global Key Performance Metrics (Dynamic Real Data) ──────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-2">
           <div className="flex items-center justify-between text-slate-500">
@@ -91,7 +124,7 @@ export default function SuperAdminLightPage() {
             <Building2 size={18} className="text-indigo-600" />
           </div>
           <div className="text-3xl font-black text-slate-900">{orgs.length} Active</div>
-          <p className="text-[11px] text-slate-500">48 Studios Registered</p>
+          <p className="text-[11px] text-slate-500">{orgs.length === 1 ? '1 Studio Provisioned' : '0 Studios Registered'}</p>
         </div>
 
         <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-2">
@@ -99,8 +132,8 @@ export default function SuperAdminLightPage() {
             <span className="text-xs font-semibold uppercase tracking-wider">Active Events</span>
             <Calendar size={18} className="text-purple-600" />
           </div>
-          <div className="text-3xl font-black text-slate-900">245</div>
-          <p className="text-[11px] text-slate-500">312 Total Hosted Events</p>
+          <div className="text-3xl font-black text-slate-900">{eventsCount}</div>
+          <p className="text-[11px] text-slate-500">{eventsCount} Event Collections Active</p>
         </div>
 
         <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-2">
@@ -108,8 +141,8 @@ export default function SuperAdminLightPage() {
             <span className="text-xs font-semibold uppercase tracking-wider">Photos in Storage</span>
             <HardDrive size={18} className="text-cyan-600" />
           </div>
-          <div className="text-3xl font-black text-slate-900">184.5k</div>
-          <p className="text-[11px] text-slate-500">284.5 GB in Cloudflare R2</p>
+          <div className="text-3xl font-black text-slate-900">{photosCount}</div>
+          <p className="text-[11px] text-slate-500">Indexed in Amazon Rekognition</p>
         </div>
 
         <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-2">
@@ -117,12 +150,12 @@ export default function SuperAdminLightPage() {
             <span className="text-xs font-semibold uppercase tracking-wider">Platform MRR</span>
             <CreditCard size={18} className="text-emerald-600" />
           </div>
-          <div className="text-3xl font-black text-emerald-600">₹3,84,000</div>
-          <p className="text-[11px] text-emerald-700 font-semibold">+18.4% this month</p>
+          <div className="text-3xl font-black text-emerald-600">₹0</div>
+          <p className="text-[11px] text-emerald-700 font-semibold">Self-Hosted Community Tier</p>
         </div>
       </div>
 
-      {/* ── Infrastructure & AI Telemetry (Light Mode) ─────────────────────── */}
+      {/* ── Infrastructure & AI Telemetry ──────────────────────────────────── */}
       <div id="infrastructure" className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-4">
         <div className="flex items-center justify-between border-b border-slate-200 pb-4">
           <div className="flex items-center gap-3">
@@ -134,7 +167,7 @@ export default function SuperAdminLightPage() {
                 Live Cloud Infrastructure Telemetry
               </h3>
               <p className="text-xs text-slate-500">
-                PostgreSQL pgvector, Cloudflare R2, and AWS Rekognition collection health
+                AWS Rekognition facial collection health and cloud storage status
               </p>
             </div>
           </div>
@@ -151,158 +184,125 @@ export default function SuperAdminLightPage() {
               AWS Rekognition Collections
             </span>
             <div className="text-base font-mono font-bold text-indigo-600">
-              245 Partitions • 380ms Avg Latency
+              {eventsCount} {eventsCount === 1 ? 'Partition' : 'Partitions'} &bull; 380ms Avg Latency
             </div>
             <p className="text-[10px] text-slate-500">Region: ap-south-1 (Mumbai)</p>
           </div>
 
           <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1">
             <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold block">
-              Cloudflare R2 Object Storage
+              IndexedDB & Object Storage
             </span>
             <div className="text-base font-mono font-bold text-cyan-600">
-              42ms Edge Latency • 0 Egress Cost
+              {(photosCount * 3.5).toFixed(1)} MB &bull; 0 Egress Cost
             </div>
-            <p className="text-[10px] text-slate-500">Dual presigned PUT pipeline</p>
+            <p className="text-[10px] text-slate-500">Local fast persistent caching active</p>
           </div>
 
           <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1">
             <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold block">
-              BullMQ Worker Queues
+              Recognition Workers
             </span>
             <div className="text-base font-mono font-bold text-emerald-600">
-              0 Backlog Tasks • 4 Queues Active
+              0 Backlog Tasks &bull; 4 Queues Active
             </div>
             <p className="text-[10px] text-slate-500">Image / Detection / Embedding / Zip</p>
           </div>
         </div>
       </div>
 
-      {/* ── Studio & Organization Management Table ─────────────────────────── */}
-      <div id="studios" className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-6">
+      {/* ── Multi-Tenant Studio Directory ───────────────────────────────────── */}
+      <div id="studios" className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden space-y-4 p-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h3 className="font-bold text-base text-slate-900">
-              Studio & Organization Directory
+              Studio &amp; Organization Directory
             </h3>
             <p className="text-xs text-slate-500">
               Manage accounts, enforce quotas, review storage, and suspend/activate tenants
             </p>
           </div>
 
-          {/* Filters */}
           <div className="flex items-center gap-3">
-            <div className="relative w-48 sm:w-64">
+            <div className="relative">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
-                placeholder="Search studio or email..."
+                placeholder="Search studio or owner..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-1.5 text-xs text-slate-900 outline-none focus:border-indigo-500"
+                className="bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-1.5 text-xs text-slate-900 outline-none focus:bg-white focus:border-indigo-500 w-48"
               />
             </div>
 
             <select
               value={planFilter}
               onChange={(e) => setPlanFilter(e.target.value)}
-              className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-700 outline-none cursor-pointer"
+              className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-700 outline-none cursor-pointer"
             >
               <option value="ALL">All Plans</option>
-              <option value="FREE">Free Starter</option>
-              <option value="PRO">Pro Studio</option>
-              <option value="ENTERPRISE">Enterprise Agency</option>
+              <option value="FREE">Free Tier</option>
+              <option value="PRO">Pro Tier</option>
+              <option value="ENTERPRISE">Enterprise</option>
             </select>
           </div>
         </div>
 
-        {/* Table */}
-        <div className="overflow-x-auto border border-slate-200 rounded-2xl">
+        {/* Directory Table */}
+        <div className="overflow-x-auto pt-2">
           <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50 text-slate-600 uppercase tracking-wider font-semibold border-b border-slate-200">
-              <tr>
-                <th className="p-4">Studio Name</th>
-                <th className="p-4">Plan Tier</th>
-                <th className="p-4">Events</th>
-                <th className="p-4">Photos</th>
-                <th className="p-4">MRR</th>
-                <th className="p-4">Status</th>
-                <th className="p-4 text-right">Actions</th>
+            <thead>
+              <tr className="border-b border-slate-200 text-slate-400 font-bold uppercase tracking-wider text-[10px]">
+                <th className="pb-3 px-3">Studio Name</th>
+                <th className="pb-3 px-3">Plan Tier</th>
+                <th className="pb-3 px-3">Events</th>
+                <th className="pb-3 px-3">Photos</th>
+                <th className="pb-3 px-3">Status</th>
+                <th className="pb-3 px-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filteredOrgs.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center text-slate-500 text-xs">
+                  <td colSpan={6} className="py-8 text-center text-slate-400 text-xs">
                     No studios or tenant organizations registered yet.
                   </td>
                 </tr>
               ) : (
                 filteredOrgs.map((org) => (
-                <tr key={org.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="p-4 font-bold text-slate-900">
-                    {org.name}
-                    <span className="block text-[11px] text-slate-500 font-normal mt-0.5">
-                      {org.owner} • Joined {org.joinedDate}
-                    </span>
-                  </td>
-                  <td className="p-4">
-                    <span
-                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                        org.plan === 'ENTERPRISE'
-                          ? 'bg-purple-50 text-purple-700 border border-purple-200'
-                          : org.plan === 'PRO'
-                          ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
-                          : 'bg-slate-100 text-slate-700'
-                      }`}
-                    >
-                      {org.plan === 'ENTERPRISE' ? 'ENTERPRISE AGENCY' : org.plan === 'PRO' ? 'PRO STUDIO' : 'FREE STARTER'}
-                    </span>
-                  </td>
-                  <td className="p-4 font-semibold text-slate-800">
-                    {org.eventsCount}
-                  </td>
-                  <td className="p-4 font-semibold text-slate-800">
-                    {org.photosCount.toLocaleString()} photos
-                    <span className="block text-[10px] text-slate-500 font-normal">
-                      {(org.storageMB / 1024).toFixed(1)} GB stored
-                    </span>
-                  </td>
-                  <td className="p-4 font-mono font-bold text-emerald-600">
-                    {org.mrrINR > 0 ? `₹${org.mrrINR.toLocaleString()}/mo` : '₹0'}
-                  </td>
-                  <td className="p-4">
-                    <span
-                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                        org.status === 'ACTIVE'
-                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                          : 'bg-red-50 text-red-700 border border-red-200'
-                      }`}
-                    >
-                      {org.status}
-                    </span>
-                  </td>
-                  <td className="p-4 text-right space-x-2">
-                    <button
-                      type="button"
-                      onClick={() => toggleStatus(org.id)}
-                      className={`px-3 py-1 rounded-lg text-[11px] font-bold transition-all ${
-                        org.status === 'ACTIVE'
-                          ? 'bg-red-50 hover:bg-red-100 text-red-600 border border-red-200'
-                          : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200'
-                      }`}
-                    >
-                      {org.status === 'ACTIVE' ? 'Suspend' : 'Activate'}
-                    </button>
-
-                    <Link
-                      href="/organizer"
-                      className="px-3 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-[11px] font-bold inline-block"
-                    >
-                      Enter Studio
-                    </Link>
-                  </td>
-                </tr>
+                  <tr key={org.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="py-3.5 px-3">
+                      <div className="font-bold text-slate-900">{org.name}</div>
+                      <div className="text-[11px] text-slate-500">Owner: {org.owner}</div>
+                    </td>
+                    <td className="py-3.5 px-3">
+                      <span className="px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 font-bold text-[10px]">
+                        {org.plan}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-3 font-semibold text-slate-800">{org.eventsCount}</td>
+                    <td className="py-3.5 px-3 font-semibold text-slate-800">{org.photosCount}</td>
+                    <td className="py-3.5 px-3">
+                      <span
+                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                          org.status === 'ACTIVE'
+                            ? 'bg-emerald-50 text-emerald-700'
+                            : 'bg-red-50 text-red-700'
+                        }`}
+                      >
+                        {org.status}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-3 text-right">
+                      <button
+                        type="button"
+                        onClick={() => toggleStatus(org.id)}
+                        className="text-xs font-bold text-indigo-600 hover:text-indigo-800 cursor-pointer"
+                      >
+                        {org.status === 'ACTIVE' ? 'Suspend' : 'Activate'}
+                      </button>
+                    </td>
+                  </tr>
                 ))
               )}
             </tbody>

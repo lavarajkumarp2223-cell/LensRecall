@@ -11,6 +11,7 @@ import {
   Activity,
   LogOut,
   ArrowLeft,
+  UserCheck,
 } from 'lucide-react';
 
 const ADMIN_NAV = [
@@ -28,6 +29,7 @@ export default function SuperAdminLightLayout({
   const pathname = usePathname();
   const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [adminUsername, setAdminUsername] = useState('lavakumar');
 
   useEffect(() => {
     if (pathname === '/admin/login') {
@@ -43,6 +45,7 @@ export default function SuperAdminLightLayout({
         const parsed = JSON.parse(sessionRaw);
         if (parsed.role === 'SUPER_ADMIN') {
           setIsAuthenticated(true);
+          if (parsed.username) setAdminUsername(parsed.username);
         } else {
           router.push('/admin/login');
         }
@@ -64,7 +67,7 @@ export default function SuperAdminLightLayout({
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center text-xs font-mono text-slate-500">
-        Verifying cryptographic root privileges...
+        Verifying cryptographic root privileges for {adminUsername}...
       </div>
     );
   }
@@ -90,9 +93,16 @@ export default function SuperAdminLightLayout({
               </div>
             </Link>
 
-            <div className="px-2.5 py-1 rounded-lg bg-red-50 border border-red-200 text-[10px] font-bold text-red-700 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-ping inline-block" />
-              <span>ROOT PRIVILEGES ACTIVE</span>
+            {/* Logged in identity card */}
+            <div className="p-2.5 rounded-xl bg-red-50/80 border border-red-200 text-xs space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold uppercase text-red-600 tracking-wider">Root Superadmin</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-ping inline-block" />
+              </div>
+              <div className="font-mono font-bold text-slate-900 flex items-center gap-1.5">
+                <UserCheck size={13} className="text-red-600" />
+                <span>{adminUsername}</span>
+              </div>
             </div>
           </div>
 
