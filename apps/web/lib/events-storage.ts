@@ -64,11 +64,12 @@ export function getUserEvents(): EventItem[] {
   const user = getCurrentUser();
   if (!user) return [];
   const all = getAllEvents();
-  // Filter strictly by ownerEmail matching logged-in user
+  // STRICT isolation: only show events that belong to the logged-in user
   return all.filter((e) => {
     if (!e.ownerEmail) {
-      // Legacy unassigned events: assign to user if they're the only one
-      return all.length > 0 && !all.some((ev) => ev.ownerEmail && ev.ownerEmail !== user.email);
+      // Legacy events without ownerEmail — do NOT show to anyone
+      // They are orphaned and must be re-created by the owner
+      return false;
     }
     return e.ownerEmail.toLowerCase() === user.email.toLowerCase();
   });
