@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, Suspense, useRef } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -12,11 +12,14 @@ import {
   Eye,
   Check,
   X,
+  Upload,
 } from 'lucide-react';
 import {
   StoredPhoto,
   getPhotosForEvent,
   getAllPhotosFromStorage,
+  savePhotoToStorage,
+  fileToDataUrl,
 } from '../../../lib/photo-storage';
 
 interface GalleryPhoto {
@@ -29,110 +32,6 @@ interface GalleryPhoto {
   width: number;
   height: number;
 }
-
-// Fallback high-resolution portraits for multi-device guest previews
-const DEMO_EVENT_PHOTOS: GalleryPhoto[] = [
-  {
-    id: 'p_demo_1',
-    url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=1200&auto=format&fit=crop&q=80',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&auto=format&fit=crop&q=80',
-    album: 'Highlights & All Photos',
-    matchScore: 99.8,
-    filename: 'DSC_0192_RAW.jpg',
-    width: 3840,
-    height: 2560,
-  },
-  {
-    id: 'p_demo_2',
-    url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=1200&auto=format&fit=crop&q=80',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80',
-    album: 'Highlights & All Photos',
-    matchScore: 99.4,
-    filename: 'DSC_0204_RAW.jpg',
-    width: 3840,
-    height: 2560,
-  },
-  {
-    id: 'p_demo_3',
-    url: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=1200&auto=format&fit=crop&q=80',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=400&auto=format&fit=crop&q=80',
-    album: 'Highlights & All Photos',
-    matchScore: 98.9,
-    filename: 'DSC_0311_RAW.jpg',
-    width: 3840,
-    height: 2560,
-  },
-  {
-    id: 'p_demo_4',
-    url: 'https://images.unsplash.com/photo-1519741497674-611481863552?w=1200&auto=format&fit=crop&q=80',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1519741497674-611481863552?w=400&auto=format&fit=crop&q=80',
-    album: 'Highlights & All Photos',
-    matchScore: 98.5,
-    filename: 'DSC_0450_RAW.jpg',
-    width: 3840,
-    height: 2560,
-  },
-  {
-    id: 'p_demo_5',
-    url: 'https://images.unsplash.com/photo-1511578314322-379afb476865?w=1200&auto=format&fit=crop&q=80',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1511578314322-379afb476865?w=400&auto=format&fit=crop&q=80',
-    album: 'Highlights & All Photos',
-    matchScore: 97.9,
-    filename: 'DSC_0512_RAW.jpg',
-    width: 3840,
-    height: 2560,
-  },
-  {
-    id: 'p_demo_6',
-    url: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=1200&auto=format&fit=crop&q=80',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=400&auto=format&fit=crop&q=80',
-    album: 'Highlights & All Photos',
-    matchScore: 97.2,
-    filename: 'DSC_0628_RAW.jpg',
-    width: 3840,
-    height: 2560,
-  },
-  {
-    id: 'p_demo_7',
-    url: 'https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=1200&auto=format&fit=crop&q=80',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=400&auto=format&fit=crop&q=80',
-    album: 'Highlights & All Photos',
-    matchScore: 96.8,
-    filename: 'DSC_0741_RAW.jpg',
-    width: 3840,
-    height: 2560,
-  },
-  {
-    id: 'p_demo_8',
-    url: 'https://images.unsplash.com/photo-1522673607200-164d1b6ce486?w=1200&auto=format&fit=crop&q=80',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1522673607200-164d1b6ce486?w=400&auto=format&fit=crop&q=80',
-    album: 'Highlights & All Photos',
-    matchScore: 96.1,
-    filename: 'DSC_0819_RAW.jpg',
-    width: 3840,
-    height: 2560,
-  },
-  {
-    id: 'p_demo_9',
-    url: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=1200&auto=format&fit=crop&q=80',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&auto=format&fit=crop&q=80',
-    album: 'Highlights & All Photos',
-    matchScore: 95.4,
-    filename: 'DSC_0902_RAW.jpg',
-    width: 3840,
-    height: 2560,
-  },
-  {
-    id: 'p_demo_10',
-    url: 'https://images.unsplash.com/photo-1520854221256-17451cc331bf?w=1200&auto=format&fit=crop&q=80',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1520854221256-17451cc331bf?w=400&auto=format&fit=crop&q=80',
-    album: 'Highlights & All Photos',
-    matchScore: 94.8,
-    filename: 'DSC_1014_RAW.jpg',
-    width: 3840,
-    height: 2560,
-  },
-];
 
 function GalleryContent() {
   const params = useParams();
@@ -162,6 +61,7 @@ function GalleryContent() {
   const [selectedAlbum] = useState('ALL');
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Lightbox modal state
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
@@ -228,14 +128,54 @@ function GalleryContent() {
           height: p.height || 2560,
         }));
         setPhotosList(mapped);
-      } else {
-        // Fallback 3: Provide high-res event gallery photos so mobile guests always see discovered photos
-        setPhotosList(DEMO_EVENT_PHOTOS);
       }
     }
 
     loadPhotos();
   }, [eventId, eventInfo.id, token]);
+
+  const handleMobilePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const targetEventId = eventInfo.id || eventId || 'evt_testing';
+    const newPhotos: GalleryPhoto[] = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]!;
+      const dataUrl = await fileToDataUrl(file);
+      const storedItem: StoredPhoto = {
+        id: `ph_mob_${Date.now()}_${i}`,
+        eventId: targetEventId,
+        originalFilename: file.name,
+        url: dataUrl,
+        thumbnailUrl: dataUrl,
+        album: 'Highlights & All Photos',
+        width: 3840,
+        height: 2560,
+        sizeMB: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
+        uploadedAt: 'Just now',
+        status: 'READY',
+        faceCount: 1,
+        faces: [{ x: 35, y: 20, width: 28, height: 32, confidence: 99.4 }],
+      };
+
+      await savePhotoToStorage(storedItem);
+
+      newPhotos.push({
+        id: storedItem.id,
+        url: dataUrl,
+        thumbnailUrl: dataUrl,
+        album: storedItem.album,
+        matchScore: Math.max(92, +(99.8 - i * 0.4).toFixed(1)),
+        filename: file.name,
+        width: 3840,
+        height: 2560,
+      });
+    }
+
+    setPhotosList((prev) => [...newPhotos, ...prev]);
+  };
 
   const filteredPhotos = photosList.filter((p) => {
     if (selectedAlbum === 'ALL') return true;
@@ -268,7 +208,16 @@ function GalleryContent() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col justify-between selection:bg-indigo-500 selection:text-white">
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col justify-between selection:bg-indigo-500 selection:text-white font-sans">
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleMobilePhotoUpload}
+        multiple
+        accept="image/*"
+        className="hidden"
+      />
+
       {/* ── Top Header ──────────────────────────────────────────────────────── */}
       <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -346,18 +295,38 @@ function GalleryContent() {
               </p>
             </div>
           </div>
+
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs font-bold text-slate-700 flex items-center gap-1.5 cursor-pointer self-start sm:self-auto"
+          >
+            <Upload size={14} />
+            <span>Upload from this Phone</span>
+          </button>
         </div>
 
         {/* Photos Grid */}
         {filteredPhotos.length === 0 ? (
-          <div className="p-16 text-center bg-white rounded-3xl border border-slate-200 space-y-3 shadow-sm">
-            <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
-              <ImageIcon size={24} />
+          <div className="p-12 sm:p-16 text-center bg-white rounded-3xl border border-slate-200 space-y-4 shadow-sm max-w-lg mx-auto">
+            <div className="w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto shadow-sm">
+              <ImageIcon size={26} />
             </div>
-            <h3 className="font-bold text-base text-slate-900">No Photographs Found</h3>
-            <p className="text-xs text-slate-500 max-w-sm mx-auto">
-              We did not find photos matching your facial profile in this album.
-            </p>
+            <div>
+              <h3 className="font-bold text-base text-slate-900">No Photos Stored on this Device</h3>
+              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                Photographs for <strong>{eventInfo.name}</strong> were uploaded on your computer browser. You can either test guest face search directly on that computer or upload photographs directly from this phone.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="px-5 py-3 rounded-2xl lr-btn-primary-gradient text-white text-xs font-bold inline-flex items-center gap-2 shadow-md cursor-pointer"
+            >
+              <Upload size={15} />
+              <span>Select Photos from Phone Gallery</span>
+            </button>
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
