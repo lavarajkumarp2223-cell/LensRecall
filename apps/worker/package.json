@@ -1,0 +1,32 @@
+{
+  "name": "@lensrecall/worker",
+  "version": "0.0.1",
+  "private": true,
+  "description": "LensRecall background job workers (BullMQ)",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "start": "node dist/main.js",
+    "build": "tsc --build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@lensrecall/db": "*",
+    "@lensrecall/shared": "*",
+    "@aws-sdk/client-rekognition": "^3.809.0",
+    "@aws-sdk/client-s3": "^3.809.0",
+    "@aws-sdk/s3-request-presigner": "^3.809.0",
+    "bullmq": "^5.56.2",
+    "ioredis": "^5.6.1",
+    "sharp": "^0.33.5",
+    "archiver": "^7.0.1"
+  },
+  "devDependencies": {
+    "@lensrecall/config": "*",
+    "@types/archiver": "^6.0.3",
+    "@types/node": "^22.15.3",
+    "tsx": "^4.19.3",
+    "typescript": "^5.7.3",
+    "vitest": "^3.2.4"
+  }
+}

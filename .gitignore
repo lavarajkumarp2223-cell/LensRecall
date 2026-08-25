@@ -1,0 +1,43 @@
+# ─── Node ──────────────────────────────────────────────────
+node_modules/
+.npm/
+npm-debug.log*
+
+# ─── Build outputs ─────────────────────────────────────────
+dist/
+build/
+.next/
+.turbo/
+coverage/
+*.tsbuildinfo
+
+# ─── Environment ───────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+.env.development.local
+.env.test.local
+.env.production.local
+# Keep .env.example committed
+
+# ─── IDE ───────────────────────────────────────────────────
+.idea/
+.vscode/settings.json
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ─── Logs ──────────────────────────────────────────────────
+logs/
+*.log
+
+# ─── Test artifacts ────────────────────────────────────────
+coverage/
+*.lcov
+
+# ─── Docker ────────────────────────────────────────────────
+# Keep docker-compose.yml committed
+
+# ─── Uploads (dev temp) ────────────────────────────────────
+uploads/tmp/

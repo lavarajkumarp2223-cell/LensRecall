@@ -1,0 +1,95 @@
+version: '3.9'
+
+# LensRecall — Local Development Infrastructure
+# Provides: PostgreSQL (with pgvector), Redis, MinIO (S3-compatible local storage)
+#
+# Usage:
+#   docker compose up -d
+#   docker compose down
+#   docker compose down -v  # Also remove volumes (clean slate)
+
+services:
+
+  # ─── PostgreSQL with pgvector ─────────────────────────────────────────────
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: lensrecall_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: lensrecall_dev
+      POSTGRES_USER: lensrecall
+      POSTGRES_PASSWORD: devpassword123
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./packages/db/src/migrations/0000_initial_setup.sql:/docker-entrypoint-initdb.d/0000_setup.sql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U lensrecall -d lensrecall_dev']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ─── Redis ────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: lensrecall_redis
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ─── MinIO (S3-compatible local storage) ──────────────────────────────────
+  # Used as local dev replacement for Cloudflare R2
+  # When using MockStorageAdapter, MinIO is NOT required
+  minio:
+    image: minio/minio:latest
+    container_name: lensrecall_minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123
+    ports:
+      - '9000:9000'   # S3 API
+      - '9001:9001'   # MinIO Console UI
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:9000/minio/health/live']
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # ─── Redis Commander (optional UI for Redis) ──────────────────────────────
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: lensrecall_redis_ui
+    restart: unless-stopped
+    environment:
+      REDIS_HOSTS: local:redis:6379
+    ports:
+      - '8081:8081'
+    depends_on:
+      redis:
+        condition: service_healthy
+    profiles:
+      - tools  # Only starts with: docker compose --profile tools up
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  minio_data:
+    driver: local
+
+networks:
+  default:
+    name: lensrecall_network
