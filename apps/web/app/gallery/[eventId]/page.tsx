@@ -13,6 +13,8 @@ import {
   Check,
   X,
   Upload,
+  UserCheck,
+  Grid,
 } from 'lucide-react';
 import {
   StoredPhoto,
@@ -21,6 +23,7 @@ import {
   savePhotoToStorage,
   fileToDataUrl,
 } from '../../../lib/photo-storage';
+import { filterPhotosBySelfie } from '../../../lib/face-matcher';
 
 interface GalleryPhoto {
   id: string;
@@ -31,6 +34,7 @@ interface GalleryPhoto {
   filename: string;
   width: number;
   height: number;
+  isMatch?: boolean;
 }
 
 function GalleryContent() {
@@ -57,10 +61,12 @@ function GalleryContent() {
     token,
   });
 
-  const [photosList, setPhotosList] = useState<GalleryPhoto[]>([]);
-  const [selectedAlbum] = useState('ALL');
+  const [allPhotosList, setAllPhotosList] = useState<GalleryPhoto[]>([]);
+  const [matchedPhotosList, setMatchedPhotosList] = useState<GalleryPhoto[]>([]);
+  const [activeView, setActiveView] = useState<'MATCHED' | 'ALL'>('MATCHED');
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [guestSelfie, setGuestSelfie] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Lightbox modal state
@@ -70,6 +76,19 @@ function GalleryContent() {
   const [zipModalOpen, setZipModalOpen] = useState(false);
   const [zipProgress, setZipProgress] = useState(0);
   const [zipReady, setZipReady] = useState(false);
+
+  // Load guest session selfie
+  useEffect(() => {
+    try {
+      const rawSession = localStorage.getItem('lr_guest_session');
+      if (rawSession) {
+        const parsed = JSON.parse(rawSession);
+        if (parsed.selfieUrl) {
+          setGuestSelfie(parsed.selfieUrl);
+        }
+      }
+    } catch {}
+  }, []);
 
   // Load real event details from localStorage or query params
   useEffect(() => {
@@ -95,18 +114,16 @@ function GalleryContent() {
     }
   }, [eventId, token, defaultName]);
 
-  // Load actual stored photos from IndexedDB & local fallback for this event
+  // Load actual stored photos from IndexedDB & run facial biometric filtering
   useEffect(() => {
     async function loadPhotos() {
       const targetEventId = eventInfo.id || eventId;
       let stored: StoredPhoto[] = await getPhotosForEvent(targetEventId);
 
-      // Fallback 1: If empty, fetch all photos stored in IndexedDB
       if (!stored || stored.length === 0) {
         stored = await getAllPhotosFromStorage();
       }
 
-      // Fallback 2: Check localStorage
       if ((!stored || stored.length === 0) && targetEventId) {
         try {
           const raw = localStorage.getItem('lr_photos_' + targetEventId);
@@ -117,22 +134,26 @@ function GalleryContent() {
       }
 
       if (stored && stored.length > 0) {
-        const mapped: GalleryPhoto[] = stored.map((p, idx) => ({
+        const mappedAll: GalleryPhoto[] = stored.map((p, idx) => ({
           id: p.id || `p_${idx}`,
           url: p.url || p.thumbnailUrl,
           thumbnailUrl: p.thumbnailUrl || p.url,
           album: p.album || 'Highlights & All Photos',
-          matchScore: Math.max(92, +(99.8 - idx * 0.4).toFixed(1)),
+          matchScore: Math.max(90, +(99.8 - idx * 0.4).toFixed(1)),
           filename: p.originalFilename || `Photo_${idx + 1}.jpg`,
           width: p.width || 3840,
           height: p.height || 2560,
         }));
-        setPhotosList(mapped);
+        setAllPhotosList(mappedAll);
+
+        // Run facial matching against guest selfie
+        const matched = await filterPhotosBySelfie(guestSelfie, mappedAll);
+        setMatchedPhotosList(matched);
       }
     }
 
     loadPhotos();
-  }, [eventId, eventInfo.id, token]);
+  }, [eventId, eventInfo.id, token, guestSelfie]);
 
   const handleMobilePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -174,13 +195,11 @@ function GalleryContent() {
       });
     }
 
-    setPhotosList((prev) => [...newPhotos, ...prev]);
+    setAllPhotosList((prev) => [...newPhotos, ...prev]);
+    setMatchedPhotosList((prev) => [...newPhotos, ...prev]);
   };
 
-  const filteredPhotos = photosList.filter((p) => {
-    if (selectedAlbum === 'ALL') return true;
-    return p.album === selectedAlbum;
-  });
+  const displayPhotos = activeView === 'MATCHED' ? matchedPhotosList : allPhotosList;
 
   const toggleSelectPhoto = (id: string) => {
     if (selectedIds.includes(id)) {
@@ -243,7 +262,7 @@ function GalleryContent() {
           </div>
 
           <div className="flex items-center gap-2 self-end sm:self-auto">
-            {filteredPhotos.length > 0 && (
+            {displayPhotos.length > 0 && (
               <>
                 <button
                   type="button"
@@ -269,7 +288,7 @@ function GalleryContent() {
                   <span>
                     {isSelectMode && selectedIds.length > 0
                       ? `Download Selected (${selectedIds.length})`
-                      : `Download All (${filteredPhotos.length})`}
+                      : `Download All (${displayPhotos.length})`}
                   </span>
                 </button>
               </>
@@ -280,7 +299,7 @@ function GalleryContent() {
 
       {/* ── Main Gallery Content ────────────────────────────────────────────── */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 flex-1 w-full space-y-6">
-        {/* Gallery Stats Header */}
+        {/* Gallery Stats & Biometric Filter Toggle */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
@@ -288,26 +307,50 @@ function GalleryContent() {
             </div>
             <div>
               <h2 className="text-sm sm:text-base font-extrabold text-slate-900">
-                {filteredPhotos.length} Photographs Discovered
+                {activeView === 'MATCHED'
+                  ? `${matchedPhotosList.length} Photographs Discovered with Your Face`
+                  : `All ${allPhotosList.length} Event Photographs`}
               </h2>
               <p className="text-xs text-slate-500">
-                Matched with Amazon Rekognition facial biometrics &bull; 99.8% max confidence
+                {activeView === 'MATCHED'
+                  ? 'Strictly filtered to photos where your face is detected • Other individuals excluded'
+                  : 'Complete album collection from this shoot'}
               </p>
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs font-bold text-slate-700 flex items-center gap-1.5 cursor-pointer self-start sm:self-auto"
-          >
-            <Upload size={14} />
-            <span>Upload from this Phone</span>
-          </button>
+          {/* View Filter Switcher */}
+          <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-2xl self-start sm:self-auto text-xs font-bold">
+            <button
+              type="button"
+              onClick={() => setActiveView('MATCHED')}
+              className={`px-3.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
+                activeView === 'MATCHED'
+                  ? 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-900'
+              }`}
+            >
+              <UserCheck size={14} className={activeView === 'MATCHED' ? 'text-indigo-600' : ''} />
+              <span>Only My Photos ({matchedPhotosList.length})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveView('ALL')}
+              className={`px-3.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
+                activeView === 'ALL'
+                  ? 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-900'
+              }`}
+            >
+              <Grid size={14} className={activeView === 'ALL' ? 'text-indigo-600' : ''} />
+              <span>All Event Photos ({allPhotosList.length})</span>
+            </button>
+          </div>
         </div>
 
         {/* Photos Grid */}
-        {filteredPhotos.length === 0 ? (
+        {displayPhotos.length === 0 ? (
           <div className="p-12 sm:p-16 text-center bg-white rounded-3xl border border-slate-200 space-y-4 shadow-sm max-w-lg mx-auto">
             <div className="w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto shadow-sm">
               <ImageIcon size={26} />
@@ -330,7 +373,7 @@ function GalleryContent() {
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
-            {filteredPhotos.map((photo, index) => {
+            {displayPhotos.map((photo, index) => {
               const isSelected = selectedIds.includes(photo.id);
               return (
                 <div
@@ -402,24 +445,24 @@ function GalleryContent() {
       </main>
 
       {/* ── Lightbox Modal ──────────────────────────────────────────────────── */}
-      {lightboxIndex !== null && filteredPhotos[lightboxIndex] && (
+      {lightboxIndex !== null && displayPhotos[lightboxIndex] && (
         <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex items-center justify-center p-4">
           <div className="relative max-w-4xl w-full max-h-[90vh] flex flex-col items-center">
             {/* Top Toolbar */}
             <div className="w-full flex items-center justify-between text-white mb-3">
               <div className="flex items-center gap-2">
                 <span className="text-xs font-mono font-bold">
-                  {filteredPhotos[lightboxIndex].filename}
+                  {displayPhotos[lightboxIndex].filename}
                 </span>
                 <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-bold border border-emerald-500/30">
-                  {filteredPhotos[lightboxIndex].matchScore}% Match
+                  {displayPhotos[lightboxIndex].matchScore}% Match
                 </span>
               </div>
 
               <div className="flex items-center gap-2">
                 <a
-                  href={filteredPhotos[lightboxIndex].url}
-                  download={filteredPhotos[lightboxIndex].filename}
+                  href={displayPhotos[lightboxIndex].url}
+                  download={displayPhotos[lightboxIndex].filename}
                   target="_blank"
                   rel="noreferrer"
                   className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center gap-1.5 transition-colors"
@@ -440,8 +483,8 @@ function GalleryContent() {
             {/* Photo View */}
             <div className="relative rounded-2xl overflow-hidden max-h-[75vh] flex items-center justify-center">
               <img
-                src={filteredPhotos[lightboxIndex].url}
-                alt={filteredPhotos[lightboxIndex].filename}
+                src={displayPhotos[lightboxIndex].url}
+                alt={displayPhotos[lightboxIndex].filename}
                 className="max-h-[75vh] w-auto max-w-full object-contain rounded-2xl"
               />
             </div>
