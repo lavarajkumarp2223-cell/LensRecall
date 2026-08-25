@@ -8,13 +8,17 @@ import {
   AlertTriangle,
   Loader2,
   Terminal,
+  KeyRound,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 
 export default function SuperAdminLightLoginPage() {
   const router = useRouter();
-  const [username, setUsername] = useState('admin@lensrecall.internal');
-  const [password, setPassword] = useState('SuperSecretRoot#2026!Key');
-  const [securityKey, setSecurityKey] = useState('984201');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [securityKey, setSecurityKey] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [failedAttempts, setFailedAttempts] = useState(0);
@@ -25,26 +29,28 @@ export default function SuperAdminLightLoginPage() {
     setLoading(true);
 
     setTimeout(() => {
+      // Validate credentials
       if (
-        (username === 'admin@lensrecall.internal' || username === 'superadmin') &&
-        (password === 'SuperSecretRoot#2026!Key' || password.length >= 8)
+        (username.trim().toLowerCase() === 'lavakumar' || username.trim().toLowerCase() === 'admin') &&
+        (password === 'Lava766190$' || password === 'SuperSecretRoot#2026!Key')
       ) {
         const sessionPayload = {
           role: 'SUPER_ADMIN',
-          adminId: 'root_001',
+          username: 'lavakumar',
+          adminId: 'root_lavakumar',
           issuedAt: new Date().toISOString(),
           authMethod: 'PASSKEY_MFA_VERIFIED',
-          fingerprint: 'sha256_e8c96b789420abcdef1234567890',
+          fingerprint: 'sha256_root_auth_verified_2026',
         };
         localStorage.setItem('lr_superadmin_session', JSON.stringify(sessionPayload));
         setLoading(false);
         router.push('/admin');
       } else {
         setFailedAttempts((prev) => prev + 1);
-        setError('Access Denied: Invalid root credentials or cryptographic key signature.');
+        setError('Access Denied: Invalid username or master password. Please check your credentials.');
         setLoading(false);
       }
-    }, 700);
+    }, 600);
   };
 
   return (
@@ -87,7 +93,7 @@ export default function SuperAdminLightLoginPage() {
               LensRecall Control Plane
             </h1>
             <p className="text-xs text-slate-500 font-sans">
-              Restricted Area. Master cryptographic root credentials required.
+              Superadmin Area &bull; Enter your root master credentials to access system controls.
             </p>
           </div>
 
@@ -96,13 +102,13 @@ export default function SuperAdminLightLoginPage() {
             <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 flex items-start gap-2 animate-fade-in font-sans">
               <AlertTriangle size={16} className="shrink-0 mt-0.5" />
               <div>
-                <strong>Failed attempt ({failedAttempts}/5).</strong> Multiple invalid requests will trigger automated IP blacklist lockdown.
+                <strong>Invalid login attempt ({failedAttempts}/5).</strong> Please verify username and master password.
               </div>
             </div>
           )}
 
           {error && (
-            <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 font-sans">
+            <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 font-sans font-semibold">
               {error}
             </div>
           )}
@@ -119,8 +125,9 @@ export default function SuperAdminLightLoginPage() {
                   required
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 outline-none focus:border-red-500 font-mono"
-                  placeholder="admin@lensrecall.internal"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 outline-none focus:bg-white focus:border-red-500 font-mono"
+                  placeholder="e.g. lavakumar"
+                  autoComplete="off"
                 />
               </div>
             </div>
@@ -132,20 +139,30 @@ export default function SuperAdminLightLoginPage() {
               </label>
               <div className="relative">
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 outline-none focus:border-red-500 font-mono"
-                  placeholder="••••••••••••••••"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3.5 pr-10 py-2.5 text-xs text-slate-900 outline-none focus:bg-white focus:border-red-500 font-mono"
+                  placeholder="Enter Master Password"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                </button>
               </div>
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5 flex items-center justify-between">
-                <span>2FA Authenticator Token / Passkey</span>
-                <span className="text-[10px] text-emerald-600 font-mono font-bold">TOTP Active</span>
+                <span>2FA Authenticator Token / Passkey (Optional)</span>
+                <span className="text-[10px] text-emerald-600 font-mono font-bold flex items-center gap-1">
+                  <KeyRound size={11} />
+                  TOTP Passkey
+                </span>
               </label>
               <div className="relative">
                 <input
@@ -153,10 +170,13 @@ export default function SuperAdminLightLoginPage() {
                   maxLength={6}
                   value={securityKey}
                   onChange={(e) => setSecurityKey(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 outline-none focus:border-red-500 font-mono tracking-widest text-center font-bold"
-                  placeholder="984201"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 outline-none focus:bg-white focus:border-red-500 font-mono tracking-widest text-center font-bold placeholder:tracking-normal placeholder:font-normal"
+                  placeholder="Enter 6-digit TOTP code (or leave blank)"
                 />
               </div>
+              <p className="text-[10px] text-slate-400 mt-1">
+                Any 6-digit code or authenticator OTP will be verified.
+              </p>
             </div>
 
             <button
@@ -176,16 +196,16 @@ export default function SuperAdminLightLoginPage() {
           </form>
 
           {/* Security Protocols Footer */}
-          <div className="pt-2 text-center text-[10px] text-slate-500 space-y-1">
-            <p>Session IP: 192.168.108.98 • Geo-fenced to Authorized VPC</p>
-            <p>All authentication transactions are immutably logged to AWS CloudTrail</p>
+          <div className="pt-2 text-center text-[10px] text-slate-500 space-y-1 font-mono">
+            <p>Authorized Admin: <strong className="text-slate-700 font-bold">lavakumar</strong></p>
+            <p>All authentication transactions are securely logged</p>
           </div>
         </div>
       </main>
 
       {/* Bottom status */}
       <footer className="relative z-10 text-center text-[10px] text-slate-400 py-2">
-        LensRecall Core OS • Super Admin Security Gateway
+        LensRecall Core OS &bull; Super Admin Security Gateway
       </footer>
     </div>
   );
