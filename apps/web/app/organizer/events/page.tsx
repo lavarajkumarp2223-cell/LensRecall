@@ -19,19 +19,7 @@ import {
 } from 'lucide-react';
 
 import { deletePhotosForEvent, getPhotosForEvent } from '../../../lib/photo-storage';
-
-export interface EventItem {
-  id: string;
-  name: string;
-  category: string;
-  date: string;
-  location: string;
-  status: 'ACTIVE' | 'DRAFT' | 'ARCHIVED';
-  photoCount: number;
-  searchCount: number;
-  qrToken: string;
-  coverUrl: string;
-}
+import { getUserEvents, deleteUserEvent, EventItem } from '../../../lib/events-storage';
 
 export default function EventsListingPage() {
   const [search, setSearch] = useState('');
@@ -41,22 +29,17 @@ export default function EventsListingPage() {
   useEffect(() => {
     async function loadAndSyncEvents() {
       try {
-        const raw = localStorage.getItem('lr_organizer_events');
-        if (raw) {
-          const events: EventItem[] = JSON.parse(raw);
-          // Sync photoCount accurately with actual stored photos in IndexedDB for each event
-          const synced = await Promise.all(
-            events.map(async (evt) => {
-              const actualPhotos = await getPhotosForEvent(evt.id);
-              return {
-                ...evt,
-                photoCount: actualPhotos.length,
-              };
-            })
-          );
-          setEventsList(synced);
-          localStorage.setItem('lr_organizer_events', JSON.stringify(synced));
-        }
+        const events = getUserEvents();
+        const synced = await Promise.all(
+          events.map(async (evt) => {
+            const actualPhotos = await getPhotosForEvent(evt.id);
+            return {
+              ...evt,
+              photoCount: actualPhotos.length,
+            };
+          })
+        );
+        setEventsList(synced);
       } catch {
         // ignore
       }
@@ -68,10 +51,8 @@ export default function EventsListingPage() {
     if (confirm(`Are you sure you want to delete event "${name}"?`)) {
       const updated = eventsList.filter((e) => e.id !== id);
       setEventsList(updated);
-      try {
-        localStorage.setItem('lr_organizer_events', JSON.stringify(updated));
-        deletePhotosForEvent(id);
-      } catch {}
+      deleteUserEvent(id);
+      deletePhotosForEvent(id);
     }
   };
 

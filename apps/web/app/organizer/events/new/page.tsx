@@ -16,6 +16,7 @@ import {
   Upload,
   CheckCircle2,
 } from 'lucide-react';
+import { saveUserEvent, getCurrentUser, EventItem } from '../../../../lib/events-storage';
 
 const CATEGORIES = [
   'Wedding',
@@ -108,7 +109,8 @@ export default function NewEventPage() {
       // Fallback local persistence
     }
 
-    const newEvent = {
+    const user = getCurrentUser();
+    const newEvent: EventItem = {
       id: `evt_${Date.now()}`,
       name,
       category: 'Celebration',
@@ -120,18 +122,10 @@ export default function NewEventPage() {
       qrToken: `qr_${name.toLowerCase().replace(/[^a-z0-9]/g, '_')}_${Date.now().toString().slice(-4)}`,
       coverUrl: coverPhotoUrl || 'https://images.unsplash.com/photo-1519741497674-611481863552?w=800',
       description,
-      organizerName: 'My Studio',
+      ownerEmail: user.email,
     };
 
-    try {
-      const existingRaw = localStorage.getItem('lr_organizer_events');
-      let existingEvents = [];
-      if (existingRaw) existingEvents = JSON.parse(existingRaw);
-      existingEvents.unshift(newEvent);
-      localStorage.setItem('lr_organizer_events', JSON.stringify(existingEvents));
-    } catch {
-      // ignore
-    }
+    saveUserEvent(newEvent);
 
     router.push('/organizer/events');
   };

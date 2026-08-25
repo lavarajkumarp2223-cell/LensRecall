@@ -19,6 +19,7 @@ import {
   Check,
   Plus,
 } from 'lucide-react';
+import { getUserEvents } from '../../../lib/events-storage';
 
 type StandeeTheme = 'wedding_royal' | 'tech_summit' | 'vip_awards' | 'modern_minimal';
 
@@ -83,52 +84,40 @@ function QrStudioContent() {
     }
 
     try {
-      const raw = localStorage.getItem('lr_organizer_events');
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const map: Record<string, EventConfig> = {};
-          parsed.forEach((evt: any) => {
-            const token = evt.qrToken || `qr_${evt.name.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
-            map[evt.id] = {
-              id: evt.id,
-              name: evt.name,
-              category: evt.category || 'Celebration',
-              venue: evt.location || 'Venue TBA',
-              date: evt.date || new Date().toLocaleDateString(),
-              token,
-              scans: evt.searchCount || 0,
-              defaultTheme: evt.category === 'Corporate' ? 'tech_summit' : 'wedding_royal',
-              leftPersonName: 'Host / Groom',
-              leftPersonRole: 'Host',
-              leftPersonPhoto: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400',
-              rightPersonName: 'Host / Bride',
-              rightPersonRole: 'Host',
-              rightPersonPhoto: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400',
-              headline: evt.name,
-              actionText: 'Receive Your Event Moments with AI',
-              subtext: 'Scan with your smartphone camera to find all your photographs from our event instantly via AI',
-              accentColor: '#d97706',
-            };
-          });
+      const userEvents = getUserEvents();
+      if (userEvents.length > 0) {
+        const map: Record<string, EventConfig> = {};
+        userEvents.forEach((evt: any) => {
+          const token = evt.qrToken || `qr_${evt.name.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+          map[evt.id] = {
+            id: evt.id,
+            name: evt.name,
+            category: evt.category || 'Celebration',
+            venue: evt.location || 'Venue TBA',
+            date: evt.date || new Date().toLocaleDateString(),
+            token,
+            scans: evt.searchCount || 0,
+            defaultTheme: evt.category === 'Corporate' ? 'tech_summit' : 'wedding_royal',
+            leftPersonName: 'Host / Groom',
+            leftPersonRole: 'Host',
+            leftPersonPhoto: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400',
+            rightPersonName: 'Host / Bride',
+            rightPersonRole: 'Host',
+            rightPersonPhoto: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400',
+            headline: evt.name,
+            actionText: 'Receive Your Event Moments with AI',
+            subtext: 'Scan with your smartphone camera to find all your photographs from our event instantly via AI',
+            accentColor: '#d97706',
+          };
+        });
 
-          setEventsMap(map);
-
-          // Select matching event or first event
-          const targetId = queryEventId && map[queryEventId] ? queryEventId : parsed[0].id;
-          setSelectedEventId(targetId);
-
-          const active = map[targetId];
-          if (active) {
-            setTheme(active.defaultTheme);
-            setHeadline(active.headline);
-            setActionText(active.actionText);
-            setSubtext(active.subtext);
-            setAccentColor(active.accentColor);
-            setLeftName(active.leftPersonName);
-            setRightName(active.rightPersonName);
-          }
-        }
+        setEventsMap(map);
+        const eventIds = Object.keys(map);
+        const defaultId = queryEventId && map[queryEventId] ? queryEventId : eventIds[0]!;
+        setSelectedEventId(defaultId);
+      } else {
+        setEventsMap({});
+        setSelectedEventId('');
       }
     } catch {
       // ignore

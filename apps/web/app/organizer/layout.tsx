@@ -32,6 +32,8 @@ const NAV_ITEMS = [
   { label: 'Contact Support', href: '/contact', icon: HelpCircle },
 ];
 
+import { getCurrentUser, UserSession } from '../../lib/events-storage';
+
 export default function OrganizerLightLayout({
   children,
 }: {
@@ -40,29 +42,16 @@ export default function OrganizerLightLayout({
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [user, setUser] = useState<{ fullName: string; email: string; role: string } | null>(null);
+  const [user, setUser] = useState<UserSession>({
+    fullName: 'Lava Kumar',
+    email: 'lookalivesolutions@gmail.com',
+    role: 'ORGANIZER',
+    organizationName: 'Lava Kumar Studio',
+  });
 
   useEffect(() => {
-    const raw = localStorage.getItem('lr_user');
-    if (raw) {
-      try {
-        const parsed = JSON.parse(raw);
-        if (parsed.email === 'alex@google.com' || parsed.fullName === 'Alex Vance' || !parsed.fullName) {
-          const defaultUser = { fullName: 'Lava Kumar', email: 'lookalivesolutions@gmail.com', role: 'ORGANIZER' };
-          localStorage.setItem('lr_user', JSON.stringify(defaultUser));
-          setUser(defaultUser);
-        } else {
-          setUser(parsed);
-        }
-      } catch {
-        const defaultUser = { fullName: 'Lava Kumar', email: 'lookalivesolutions@gmail.com', role: 'ORGANIZER' };
-        setUser(defaultUser);
-      }
-    } else {
-      const defaultUser = { fullName: 'Lava Kumar', email: 'lookalivesolutions@gmail.com', role: 'ORGANIZER' };
-      localStorage.setItem('lr_user', JSON.stringify(defaultUser));
-      setUser(defaultUser);
-    }
+    const currentUser = getCurrentUser();
+    setUser(currentUser);
   }, []);
 
   const handleLogout = () => {
@@ -71,6 +60,8 @@ export default function OrganizerLightLayout({
     localStorage.removeItem('lr_user');
     router.push('/login');
   };
+
+  const userInitial = user.fullName ? user.fullName[0]?.toUpperCase() : 'U';
 
   return (
     <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-col font-sans">
@@ -96,15 +87,15 @@ export default function OrganizerLightLayout({
             {/* Studio Selector */}
             <div className="p-3 mx-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between cursor-pointer hover:border-slate-300 transition-colors">
               <div className="flex items-center gap-2.5 overflow-hidden">
-                <div className="w-7 h-7 rounded-lg bg-indigo-100 flex items-center justify-center text-xs font-bold text-indigo-700">
-                  L
+                <div className="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-xs font-bold shadow-xs">
+                  {userInitial}
                 </div>
                 <div className="truncate">
-                  <div className="text-xs font-semibold text-slate-900 truncate">
-                    Lava Kumar Studio
+                  <div className="text-xs font-bold text-slate-900 truncate">
+                    {user.organizationName || `${user.fullName} Studio`}
                   </div>
-                  <div className="text-[10px] text-slate-500">
-                    LookAliveSolutions
+                  <div className="text-[10px] text-slate-500 truncate font-mono">
+                    {user.email}
                   </div>
                 </div>
               </div>

@@ -12,20 +12,8 @@ import {
   HardDrive,
 } from 'lucide-react';
 
-interface EventItem {
-  id: string;
-  name: string;
-  category: string;
-  date: string;
-  location: string;
-  status: 'ACTIVE' | 'DRAFT' | 'ARCHIVED';
-  photoCount: number;
-  searchCount: number;
-  qrToken: string;
-  coverUrl: string;
-}
-
 import { getPhotosForEvent } from '../../lib/photo-storage';
+import { getUserEvents, EventItem } from '../../lib/events-storage';
 
 export default function OrganizerLightOverviewPage() {
   const [eventsList, setEventsList] = useState<EventItem[]>([]);
@@ -33,20 +21,17 @@ export default function OrganizerLightOverviewPage() {
   useEffect(() => {
     async function loadAndSync() {
       try {
-        const raw = localStorage.getItem('lr_organizer_events');
-        if (raw) {
-          const events: EventItem[] = JSON.parse(raw);
-          const synced = await Promise.all(
-            events.map(async (evt) => {
-              const actualPhotos = await getPhotosForEvent(evt.id);
-              return {
-                ...evt,
-                photoCount: actualPhotos.length,
-              };
-            })
-          );
-          setEventsList(synced);
-        }
+        const events = getUserEvents();
+        const synced = await Promise.all(
+          events.map(async (evt) => {
+            const actualPhotos = await getPhotosForEvent(evt.id);
+            return {
+              ...evt,
+              photoCount: actualPhotos.length,
+            };
+          })
+        );
+        setEventsList(synced);
       } catch {
         // ignore
       }

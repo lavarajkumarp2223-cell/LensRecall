@@ -19,6 +19,7 @@ import {
   deletePhotoFromStorage,
   fileToDataUrl,
 } from '../../../lib/photo-storage';
+import { getUserEvents } from '../../../lib/events-storage';
 
 interface UploadQueueItem {
   id: string;
@@ -53,14 +54,15 @@ function PhotosContent() {
   // Load events list on mount
   useEffect(() => {
     try {
-      const rawEvents = localStorage.getItem('lr_organizer_events');
-      if (rawEvents) {
-        const parsed = JSON.parse(rawEvents);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setEventsList(parsed.map((e) => ({ id: e.id, name: e.name })));
-          const defaultId = queryEventId && parsed.some((e) => e.id === queryEventId) ? queryEventId : parsed[0].id;
-          setSelectedEvent(defaultId);
-        }
+      const userEvents = getUserEvents();
+      if (userEvents.length > 0) {
+        setEventsList(userEvents.map((e) => ({ id: e.id, name: e.name })));
+        const defaultId = queryEventId && userEvents.some((e) => e.id === queryEventId) ? queryEventId : userEvents[0]!.id;
+        setSelectedEvent(defaultId);
+      } else {
+        setEventsList([]);
+        setSelectedEvent('');
+        setPhotosList([]);
       }
     } catch {
       // ignore
