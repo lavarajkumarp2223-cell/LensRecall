@@ -73,6 +73,15 @@ function PhotosContent() {
     getPhotosForEvent(selectedEvent).then((stored) => {
       setPhotosList(stored);
 
+      // Sync photos to server so mobile devices can access them
+      if (stored.length > 0) {
+        fetch('/api/photos', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ eventId: selectedEvent, photos: stored }),
+        }).catch(() => {});
+      }
+
       // Keep photoCount in sync with actual stored photos count
       try {
         const rawEvents = localStorage.getItem('lr_organizer_events');
