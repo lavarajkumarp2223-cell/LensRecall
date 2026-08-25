@@ -18,7 +18,7 @@ import {
   Eye,
 } from 'lucide-react';
 
-import { deletePhotosForEvent } from '../../../lib/photo-storage';
+import { deletePhotosForEvent, getPhotosForEvent } from '../../../lib/photo-storage';
 
 export interface EventItem {
   id: string;
@@ -39,14 +39,29 @@ export default function EventsListingPage() {
   const [eventsList, setEventsList] = useState<EventItem[]>([]);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem('lr_organizer_events');
-      if (raw) {
-        setEventsList(JSON.parse(raw));
+    async function loadAndSyncEvents() {
+      try {
+        const raw = localStorage.getItem('lr_organizer_events');
+        if (raw) {
+          const events: EventItem[] = JSON.parse(raw);
+          // Sync photoCount accurately with actual stored photos in IndexedDB for each event
+          const synced = await Promise.all(
+            events.map(async (evt) => {
+              const actualPhotos = await getPhotosForEvent(evt.id);
+              return {
+                ...evt,
+                photoCount: actualPhotos.length,
+              };
+            })
+          );
+          setEventsList(synced);
+          localStorage.setItem('lr_organizer_events', JSON.stringify(synced));
+        }
+      } catch {
+        // ignore
       }
-    } catch {
-      // ignore
     }
+    loadAndSyncEvents();
   }, []);
 
   const handleDeleteEvent = (id: string, name: string) => {

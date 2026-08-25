@@ -25,19 +25,34 @@ interface EventItem {
   coverUrl: string;
 }
 
+import { getPhotosForEvent } from '../../../lib/photo-storage';
+
 export default function OrganizerAnalyticsLightPage() {
   const [dateRange, setDateRange] = useState('7d');
   const [eventsList, setEventsList] = useState<EventItem[]>([]);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem('lr_organizer_events');
-      if (raw) {
-        setEventsList(JSON.parse(raw));
+    async function loadAndSync() {
+      try {
+        const raw = localStorage.getItem('lr_organizer_events');
+        if (raw) {
+          const events: EventItem[] = JSON.parse(raw);
+          const synced = await Promise.all(
+            events.map(async (evt) => {
+              const actualPhotos = await getPhotosForEvent(evt.id);
+              return {
+                ...evt,
+                photoCount: actualPhotos.length,
+              };
+            })
+          );
+          setEventsList(synced);
+        }
+      } catch {
+        // ignore
       }
-    } catch {
-      // ignore
     }
+    loadAndSync();
   }, []);
 
   const totalPhotos = eventsList.reduce((acc, e) => acc + (e.photoCount || 0), 0);
