@@ -46,12 +46,22 @@ export default function OrganizerLightLayout({
     const raw = localStorage.getItem('lr_user');
     if (raw) {
       try {
-        setUser(JSON.parse(raw));
+        const parsed = JSON.parse(raw);
+        if (parsed.email === 'alex@google.com' || parsed.fullName === 'Alex Vance' || !parsed.fullName) {
+          const defaultUser = { fullName: 'Lava Kumar', email: 'lookalivesolutions@gmail.com', role: 'ORGANIZER' };
+          localStorage.setItem('lr_user', JSON.stringify(defaultUser));
+          setUser(defaultUser);
+        } else {
+          setUser(parsed);
+        }
       } catch {
-        setUser({ fullName: 'Lava Kumar', email: 'lookalivesolutions@gmail.com', role: 'ORGANIZER' });
+        const defaultUser = { fullName: 'Lava Kumar', email: 'lookalivesolutions@gmail.com', role: 'ORGANIZER' };
+        setUser(defaultUser);
       }
     } else {
-      setUser({ fullName: 'Lava Kumar', email: 'lookalivesolutions@gmail.com', role: 'ORGANIZER' });
+      const defaultUser = { fullName: 'Lava Kumar', email: 'lookalivesolutions@gmail.com', role: 'ORGANIZER' };
+      localStorage.setItem('lr_user', JSON.stringify(defaultUser));
+      setUser(defaultUser);
     }
   }, []);
 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import QRCode from 'qrcode';
 import {
   Calendar,
@@ -20,6 +20,7 @@ import {
   Sparkles,
   Layers,
   X,
+  Trash2,
 } from 'lucide-react';
 
 import {
@@ -167,6 +168,22 @@ export default function EventDetailPage() {
     setShowPhotoModal(false);
   };
 
+  const router = useRouter();
+
+  const handleDeleteEvent = () => {
+    if (confirm(`Are you sure you want to permanently delete event "${displayEvent.name}" and all its photos?`)) {
+      try {
+        const raw = localStorage.getItem('lr_organizer_events');
+        if (raw) {
+          const events: EventData[] = JSON.parse(raw);
+          const updated = events.filter((e) => e.id !== displayEvent.id);
+          localStorage.setItem('lr_organizer_events', JSON.stringify(updated));
+        }
+      } catch {}
+      router.push('/organizer/events');
+    }
+  };
+
   const displayEvent: EventData = event || {
     id: eventId || 'evt_default',
     name: 'Event Shoot',
@@ -253,6 +270,15 @@ export default function EventDetailPage() {
               <Upload size={15} />
               Upload Photos
             </Link>
+            <button
+              type="button"
+              onClick={handleDeleteEvent}
+              className="px-3.5 py-2.5 rounded-xl bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 hover:text-red-700 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
+              title="Delete Event"
+            >
+              <Trash2 size={15} />
+              <span>Delete</span>
+            </button>
           </div>
         </div>
       </div>

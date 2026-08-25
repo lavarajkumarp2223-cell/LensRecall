@@ -13,6 +13,7 @@ import {
   ArrowRight,
   Image as ImageIcon,
   Clock,
+  Trash2,
 } from 'lucide-react';
 
 export interface EventItem {
@@ -43,6 +44,16 @@ export default function EventsListingPage() {
       // ignore
     }
   }, []);
+
+  const handleDeleteEvent = (id: string, name: string) => {
+    if (confirm(`Are you sure you want to delete event "${name}"?`)) {
+      const updated = eventsList.filter((e) => e.id !== id);
+      setEventsList(updated);
+      try {
+        localStorage.setItem('lr_organizer_events', JSON.stringify(updated));
+      } catch {}
+    }
+  };
 
   const filteredEvents = eventsList.filter((evt) => {
     const matchesSearch =
@@ -243,6 +254,15 @@ export default function EventsListingPage() {
                   >
                     <Upload size={16} />
                   </Link>
+
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteEvent(event.id, event.name)}
+                    className="p-2.5 rounded-xl bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 hover:text-red-700 transition-colors cursor-pointer"
+                    title="Delete Event"
+                  >
+                    <Trash2 size={16} />
+                  </button>
                 </div>
               </div>
             </div>
