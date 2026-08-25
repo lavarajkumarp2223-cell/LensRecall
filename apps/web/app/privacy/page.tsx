@@ -171,9 +171,7 @@ export default function PrivacyRightsLightPage() {
                   onChange={(e) => setSelectedEventId(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 outline-none focus:border-indigo-500 cursor-pointer"
                 >
-                  <option value="evt_wedding_01">Rohan & Priya Wedding Gala (Aug 24, 2026)</option>
-                  <option value="evt_conf_02">TechVision Global Summit 2026 (Aug 20, 2026)</option>
-                  <option value="evt_corp_03">Apex Annual Awards Night (Aug 15, 2026)</option>
+                  <option value="all">All Events / Global Collection</option>
                 </select>
               </div>
 

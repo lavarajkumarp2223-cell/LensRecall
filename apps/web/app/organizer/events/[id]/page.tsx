@@ -12,7 +12,6 @@ import {
   QrCode,
   Upload,
   Settings,
-  Trash2,
   CheckCircle2,
   ExternalLink,
   Plus,
@@ -23,12 +22,25 @@ import {
   X,
 } from 'lucide-react';
 
+interface EventData {
+  id: string;
+  name: string;
+  category: string;
+  date: string;
+  location: string;
+  status: 'ACTIVE' | 'DRAFT' | 'ARCHIVED';
+  photoCount: number;
+  searchCount: number;
+  qrToken: string;
+  coverUrl: string;
+  description?: string;
+}
+
 interface Album {
   id: string;
   name: string;
   photoCount: number;
   isDefault: boolean;
-  coverUrl: string;
 }
 
 interface Photographer {
@@ -39,31 +51,41 @@ interface Photographer {
   canDelete: boolean;
 }
 
-const EVENT_TOKENS: Record<string, string> = {
-  evt_wedding_01: 'qr_rohan_priya_2026',
-  evt_conf_02: 'qr_techvision_2026',
-  evt_corp_03: 'qr_apex_awards_2026',
-};
-
 export default function EventDetailPage() {
   const params = useParams();
-  const eventId = (params?.['id'] as string) || 'evt_wedding_01';
-  const qrToken = EVENT_TOKENS[eventId] ?? 'qr_rohan_priya_2026';
+  const eventId = (params?.['id'] as string) || '';
 
+  const [event, setEvent] = useState<EventData | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'albums' | 'photographers' | 'settings'>('overview');
   const [copied, setCopied] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [origin, setOrigin] = useState('http://localhost:3000');
 
+  // Load real event from localStorage
   useEffect(() => {
     if (typeof window !== 'undefined') {
       setOrigin(window.location.origin);
     }
-  }, []);
 
+    try {
+      const raw = localStorage.getItem('lr_organizer_events');
+      if (raw) {
+        const events: EventData[] = JSON.parse(raw);
+        const found = events.find((e) => e.id === eventId) || events[0];
+        if (found) {
+          setEvent(found);
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, [eventId]);
+
+  const qrToken = event?.qrToken || `qr_${eventId}`;
   const guestUrl = `${origin}/e/${qrToken}`;
 
   useEffect(() => {
+    if (!guestUrl) return;
     QRCode.toDataURL(guestUrl, {
       width: 500,
       margin: 1,
@@ -85,30 +107,8 @@ export default function EventDetailPage() {
     {
       id: 'alb_1',
       name: 'Highlights & All Photos',
-      photoCount: 5420,
+      photoCount: 0,
       isDefault: true,
-      coverUrl: 'https://images.unsplash.com/photo-1519741497674-611481863552?w=800&auto=format&fit=crop&q=80',
-    },
-    {
-      id: 'alb_2',
-      name: 'Sangeet & Mehendi Night',
-      photoCount: 1840,
-      isDefault: false,
-      coverUrl: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=800&auto=format&fit=crop&q=80',
-    },
-    {
-      id: 'alb_3',
-      name: 'Ceremony & Phere',
-      photoCount: 2150,
-      isDefault: false,
-      coverUrl: 'https://images.unsplash.com/photo-1511578314322-379afb476865?w=800&auto=format&fit=crop&q=80',
-    },
-    {
-      id: 'alb_4',
-      name: 'Reception Gala Dinner',
-      photoCount: 1430,
-      isDefault: false,
-      coverUrl: 'https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=800&auto=format&fit=crop&q=80',
     },
   ]);
 
@@ -116,23 +116,7 @@ export default function EventDetailPage() {
   const [showAlbumModal, setShowAlbumModal] = useState(false);
 
   // Photographers state
-  const [photographers, setPhotographers] = useState<Photographer[]>([
-    {
-      id: 'ph_1',
-      name: 'Sarah Jenkins (Lead)',
-      email: 'sarah@apexevents.com',
-      canUpload: true,
-      canDelete: true,
-    },
-    {
-      id: 'ph_2',
-      name: 'Marcus Brody',
-      email: 'marcus@brodyphoto.com',
-      canUpload: true,
-      canDelete: false,
-    },
-  ]);
-
+  const [photographers, setPhotographers] = useState<Photographer[]>([]);
   const [newPhotographerEmail, setNewPhotographerEmail] = useState('');
   const [showPhotoModal, setShowPhotoModal] = useState(false);
 
@@ -147,7 +131,6 @@ export default function EventDetailPage() {
         name: newAlbumName,
         photoCount: 0,
         isDefault: false,
-        coverUrl: 'https://images.unsplash.com/photo-1519741497674-611481863552?w=800&auto=format&fit=crop&q=80',
       },
     ]);
     setNewAlbumName('');
@@ -172,6 +155,19 @@ export default function EventDetailPage() {
     setShowPhotoModal(false);
   };
 
+  const displayEvent: EventData = event || {
+    id: eventId || 'evt_default',
+    name: 'Event Shoot',
+    category: 'Celebration',
+    date: new Date().toLocaleDateString(),
+    location: 'Venue TBA',
+    status: 'ACTIVE',
+    photoCount: 0,
+    searchCount: 0,
+    qrToken: `qr_${eventId}`,
+    coverUrl: 'https://images.unsplash.com/photo-1519741497674-611481863552?w=1600&auto=format&fit=crop&q=80',
+  };
+
   return (
     <div className="space-y-8 animate-fade-in max-w-7xl pb-16">
       {/* Top breadcrumb */}
@@ -181,7 +177,7 @@ export default function EventDetailPage() {
           Events
         </Link>
         <span>/</span>
-        <span className="text-slate-900 font-bold">Rohan & Priya Wedding Gala</span>
+        <span className="text-slate-900 font-bold">{displayEvent.name}</span>
       </div>
 
       {/* ── Event Header Banner ────────────────────────────────────────────── */}
@@ -189,8 +185,8 @@ export default function EventDetailPage() {
         {/* Cover Photo Backdrop */}
         <div className="relative h-64 sm:h-72 w-full overflow-hidden bg-slate-950">
           <img
-            src="https://images.unsplash.com/photo-1519741497674-611481863552?w=1600&auto=format&fit=crop&q=80"
-            alt="Event Cover"
+            src={displayEvent.coverUrl}
+            alt={displayEvent.name}
             className="w-full h-full object-cover brightness-75"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
@@ -198,11 +194,11 @@ export default function EventDetailPage() {
           {/* Top badges */}
           <div className="absolute top-4 left-4 flex items-center gap-2">
             <span className="px-3 py-1 rounded-full bg-black/60 backdrop-blur-md text-white border border-white/20 text-xs font-bold shadow-sm">
-              Wedding Collection
+              {displayEvent.category}
             </span>
             <span className="px-3 py-1 rounded-full bg-emerald-500 text-white text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow-sm">
               <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
-              ACTIVE
+              {displayEvent.status}
             </span>
           </div>
         </div>
@@ -211,20 +207,20 @@ export default function EventDetailPage() {
         <div className="p-6 sm:p-8 -mt-16 relative z-10 flex flex-col md:flex-row md:items-end justify-between gap-6 bg-white/90 backdrop-blur-md border-t border-slate-100">
           <div className="space-y-2">
             <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-              Rohan & Priya Wedding Gala
+              {displayEvent.name}
             </h1>
             <div className="flex flex-wrap items-center gap-4 text-xs sm:text-sm text-slate-600">
               <span className="flex items-center gap-1.5 font-semibold">
                 <Calendar size={15} className="text-indigo-600" />
-                Aug 24, 2026
+                {displayEvent.date}
               </span>
               <span className="flex items-center gap-1.5 font-medium">
                 <MapPin size={15} className="text-indigo-600" />
-                Taj West End, Bangalore
+                {displayEvent.location}
               </span>
               <span className="flex items-center gap-1.5 font-medium text-slate-500">
                 <ImageIcon size={15} className="text-indigo-600" />
-                5,420 Photos Indexed
+                {displayEvent.photoCount} Photos Indexed
               </span>
             </div>
           </div>
@@ -239,7 +235,7 @@ export default function EventDetailPage() {
               {copied ? 'Link Copied!' : 'Copy Guest Link'}
             </button>
             <Link
-              href="/organizer/photos"
+              href={`/organizer/photos?eventId=${displayEvent.id}`}
               className="lr-btn-primary-gradient px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm"
             >
               <Upload size={15} />
@@ -253,8 +249,8 @@ export default function EventDetailPage() {
       <div className="flex border-b border-slate-200 overflow-x-auto gap-2">
         {[
           { id: 'overview', label: 'Overview & Standee QR', icon: QrCode },
-          { id: 'albums', label: 'Albums (4)', icon: Layers },
-          { id: 'photographers', label: 'Photographers (2)', icon: Users },
+          { id: 'albums', label: `Albums (${albumsList.length})`, icon: Layers },
+          { id: 'photographers', label: `Photographers (${photographers.length})`, icon: Users },
           { id: 'settings', label: 'Event Rules & Privacy', icon: Settings },
         ].map(({ id, label, icon: Icon }) => (
           <button
@@ -281,18 +277,18 @@ export default function EventDetailPage() {
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
               <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm space-y-1">
                 <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Total Photographs</div>
-                <div className="text-2xl font-black text-slate-900">5,420</div>
-                <div className="text-[11px] text-emerald-600 font-semibold mt-1">100% indexed in R2</div>
+                <div className="text-2xl font-black text-slate-900">{displayEvent.photoCount}</div>
+                <div className="text-[11px] text-emerald-600 font-semibold mt-1">Amazon Rekognition Partition</div>
               </div>
               <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm space-y-1">
                 <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Guest Face Recalls</div>
-                <div className="text-2xl font-black text-indigo-600">840</div>
-                <div className="text-[11px] text-slate-500 mt-1">Avg 18 photos/guest</div>
+                <div className="text-2xl font-black text-indigo-600">{displayEvent.searchCount}</div>
+                <div className="text-[11px] text-slate-500 mt-1">Verified guest scans</div>
               </div>
               <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm space-y-1 col-span-2 sm:col-span-1">
                 <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Rekognition Latency</div>
                 <div className="text-2xl font-black text-slate-900">380ms</div>
-                <div className="text-[11px] text-emerald-600 font-semibold mt-1">Sub-second recall</div>
+                <div className="text-[11px] text-emerald-600 font-semibold mt-1">ap-south-1 (Mumbai)</div>
               </div>
             </div>
 
@@ -300,39 +296,42 @@ export default function EventDetailPage() {
             <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="font-bold text-sm text-slate-900">Recent Uploads</h3>
+                  <h3 className="font-bold text-sm text-slate-900">Event Photographs</h3>
                   <p className="text-xs text-slate-500">
-                    Photos processed and indexed with face bounding boxes
+                    Uploaded photographs indexed into collection partition <code className="text-indigo-600 font-mono">lensrecall_{displayEvent.id}</code>
                   </p>
                 </div>
                 <Link
-                  href="/organizer/photos"
+                  href={`/organizer/photos?eventId=${displayEvent.id}`}
                   className="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1"
                 >
-                  View full gallery
+                  Manage Photos
                   <ExternalLink size={12} />
                 </Link>
               </div>
 
-              <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
-                {[
-                  'https://images.unsplash.com/photo-1519741497674-611481863552?w=400&auto=format&fit=crop&q=60',
-                  'https://images.unsplash.com/photo-1511578314322-379afb476865?w=400&auto=format&fit=crop&q=60',
-                  'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=400&auto=format&fit=crop&q=60',
-                  'https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=400&auto=format&fit=crop&q=60',
-                  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=60',
-                  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&auto=format&fit=crop&q=60',
-                ].map((url, idx) => (
-                  <div key={idx} className="relative aspect-square rounded-xl overflow-hidden bg-slate-100 group shadow-sm">
-                    <img src={url} alt={`Upload ${idx + 1}`} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center p-1">
-                      <span className="px-1.5 py-0.5 rounded bg-indigo-600 text-white text-[9px] font-bold">
-                        2 faces
-                      </span>
-                    </div>
+              {displayEvent.photoCount === 0 ? (
+                <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200 space-y-3">
+                  <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto">
+                    <ImageIcon size={22} />
                   </div>
-                ))}
-              </div>
+                  <h4 className="text-xs font-bold text-slate-800">No photos uploaded yet for this event</h4>
+                  <p className="text-[11px] text-slate-500 max-w-xs mx-auto">
+                    Drop high-resolution event photographs into the upload manager to begin instant facial recognition.
+                  </p>
+                  <Link
+                    href={`/organizer/photos?eventId=${displayEvent.id}`}
+                    className="inline-flex items-center gap-1.5 lr-btn-primary-gradient px-4 py-2 rounded-xl text-xs font-bold shadow-sm"
+                  >
+                    <Upload size={13} />
+                    Upload Photos Now
+                  </Link>
+                </div>
+              ) : (
+                <div className="p-6 text-center bg-emerald-50/50 rounded-2xl border border-emerald-200 text-emerald-800 text-xs">
+                  <strong>{displayEvent.photoCount} photos active in collection.</strong> Click &ldquo;Manage Photos&rdquo; above to view or add more.
+                </div>
+              )}
             </div>
           </div>
 
@@ -349,42 +348,36 @@ export default function EventDetailPage() {
                 </p>
               </div>
 
-              {/* QR Container */}
-              <div className="p-4 rounded-2xl bg-white border-2 border-slate-200 shadow-md inline-block mx-auto">
+              {/* QR Image */}
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 inline-block shadow-inner">
                 {qrDataUrl ? (
-                  <img
-                    src={qrDataUrl}
-                    alt={`Scannable QR Code for event ${eventId}`}
-                    className="w-48 h-48 mx-auto rounded-lg object-contain"
-                  />
+                  <img src={qrDataUrl} alt="Event QR" className="w-48 h-48 object-contain rounded-xl" />
                 ) : (
-                  <div className="w-48 h-48 flex items-center justify-center text-xs text-slate-400">
-                    Generating QR...
-                  </div>
+                  <div className="w-48 h-48 bg-slate-200 animate-pulse rounded-xl" />
                 )}
-                <div className="text-[10px] font-mono text-slate-500 font-semibold tracking-wider mt-2">
-                  SCAN TO RECALL MOMENTS
-                </div>
               </div>
 
-              {/* Actions */}
-              <div className="space-y-2 pt-1">
+              <div className="text-xs text-slate-500 font-mono break-all bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                {guestUrl}
+              </div>
+
+              <div className="flex flex-col gap-2">
                 <Link
-                  href={`/organizer/qr?eventId=${eventId}`}
-                  className="lr-btn-primary-gradient w-full py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-sm"
+                  href={`/organizer/qr?eventId=${displayEvent.id}`}
+                  className="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-colors shadow-sm"
                 >
-                  <Sparkles size={14} />
-                  Open Standee Designer
+                  <Sparkles size={14} className="text-amber-400" />
+                  Customize Standee in Studio
                 </Link>
 
                 <a
                   href={guestUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 w-full py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-colors block"
+                  className="w-full py-2 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors"
                 >
                   <ExternalLink size={13} />
-                  Open Live Guest View
+                  Test Guest View
                 </a>
               </div>
             </div>
@@ -397,228 +390,191 @@ export default function EventDetailPage() {
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-bold text-lg text-slate-900">Event Albums</h3>
-              <p className="text-xs text-slate-500">
-                Group photographs into structured sub-events or ceremonies
-              </p>
+              <h3 className="font-bold text-base text-slate-900">Event Sub-Albums</h3>
+              <p className="text-xs text-slate-500">Categorize your photographs by ceremony or session</p>
             </div>
             <button
               type="button"
               onClick={() => setShowAlbumModal(true)}
               className="lr-btn-primary-gradient px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm cursor-pointer"
             >
-              <Plus size={15} />
+              <Plus size={14} />
               Create Album
             </button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {albumsList.map((album) => (
               <div
                 key={album.id}
-                className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col justify-between hover:shadow-md transition-all group"
+                className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col justify-between p-5 space-y-3"
               >
-                <div className="relative h-44 w-full bg-slate-100 overflow-hidden">
-                  <img src={album.coverUrl} alt={album.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                  {album.isDefault && (
-                    <div className="absolute top-2.5 left-2.5">
-                      <span className="px-2.5 py-0.5 rounded-full bg-indigo-600 text-white text-[10px] font-bold shadow-sm">
-                        Default Collection
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-xs">
+                      <Layers size={16} />
+                    </span>
+                    {album.isDefault && (
+                      <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold">
+                        Default
                       </span>
-                    </div>
-                  )}
-                </div>
-                <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
-                  <div>
-                    <h4 className="font-bold text-sm text-slate-900 line-clamp-1">{album.name}</h4>
-                    <p className="text-xs text-slate-500">{album.photoCount.toLocaleString()} photos</p>
+                    )}
                   </div>
-                  <Link
-                    href={`/organizer/photos?albumId=${album.id}`}
-                    className="w-full bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 text-slate-700 hover:text-indigo-600 py-2 rounded-xl text-xs font-bold text-center block transition-colors"
-                  >
-                    View Photos
-                  </Link>
+                  <h4 className="font-bold text-sm text-slate-900 mt-3">{album.name}</h4>
+                  <p className="text-xs text-slate-500 mt-0.5">{album.photoCount} photos</p>
                 </div>
+
+                <Link
+                  href={`/organizer/photos?eventId=${displayEvent.id}&album=${encodeURIComponent(album.name)}`}
+                  className="w-full py-2 rounded-xl bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 text-slate-700 hover:text-indigo-600 text-xs font-bold text-center transition-colors block"
+                >
+                  View Photos
+                </Link>
               </div>
             ))}
           </div>
-
-          {/* Modal: Create Album */}
-          {showAlbumModal && (
-            <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-              <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl animate-scale-in border border-slate-200">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-bold text-base text-slate-900">Create New Album</h3>
-                  <button type="button" onClick={() => setShowAlbumModal(false)} className="text-slate-400 hover:text-slate-600">
-                    <X size={18} />
-                  </button>
-                </div>
-                <form onSubmit={handleCreateAlbum} className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Album Name</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Haldi Ceremony"
-                      value={newAlbumName}
-                      onChange={(e) => setNewAlbumName(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:bg-white focus:border-indigo-500 outline-none"
-                    />
-                  </div>
-                  <div className="flex items-center justify-end gap-2.5 pt-2">
-                    <button
-                      type="button"
-                      onClick={() => setShowAlbumModal(false)}
-                      className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100"
-                    >
-                      Cancel
-                    </button>
-                    <button type="submit" className="lr-btn-primary-gradient px-4 py-2 rounded-xl text-xs font-bold shadow-sm">
-                      Create Album
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          )}
         </div>
       )}
 
-      {/* ── Tab: Photographers ─────────────────────────────────────────────── */}
+      {/* ── Tab: Photographers ──────────────────────────────────────────────── */}
       {activeTab === 'photographers' && (
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-bold text-lg text-slate-900">Assigned Photographers</h3>
-              <p className="text-xs text-slate-500">
-                Assign photographers to upload directly to this event shoot
-              </p>
+              <h3 className="font-bold text-base text-slate-900">Event Photographers</h3>
+              <p className="text-xs text-slate-500">Allow team members to upload high-resolution images to this shoot</p>
             </div>
             <button
               type="button"
               onClick={() => setShowPhotoModal(true)}
               className="lr-btn-primary-gradient px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm cursor-pointer"
             >
-              <Plus size={15} />
-              Assign Photographer
+              <Plus size={14} />
+              Invite Photographer
             </button>
           </div>
 
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden divide-y divide-slate-100">
-            {photographers.map((p) => (
-              <div key={p.id} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center font-bold text-sm text-indigo-700">
-                    {p.name[0]?.toUpperCase()}
-                  </div>
-                  <div>
-                    <div className="text-sm font-bold text-slate-900">{p.name}</div>
-                    <div className="text-xs text-slate-500">{p.email}</div>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 text-xs">
-                  <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 font-bold text-[10px] border border-emerald-200">
-                    Upload Allowed
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setPhotographers(photographers.filter((item) => item.id !== p.id))}
-                    className="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                    title="Remove"
-                  >
-                    <Trash2 size={15} />
-                  </button>
-                </div>
+          {photographers.length === 0 ? (
+            <div className="bg-white rounded-3xl border border-slate-200 p-10 text-center space-y-3 shadow-sm">
+              <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto">
+                <Users size={22} />
               </div>
-            ))}
-          </div>
-
-          {/* Modal: Assign Photographer */}
-          {showPhotoModal && (
-            <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-              <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl animate-scale-in border border-slate-200">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-bold text-base text-slate-900">Assign Photographer</h3>
-                  <button type="button" onClick={() => setShowPhotoModal(false)} className="text-slate-400 hover:text-slate-600">
-                    <X size={18} />
-                  </button>
+              <h4 className="text-sm font-bold text-slate-900">No additional photographers assigned</h4>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                Invite associate photographers to give them direct upload permissions for this event shoot.
+              </p>
+            </div>
+          ) : (
+            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden divide-y divide-slate-100">
+              {photographers.map((p) => (
+                <div key={p.id} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center font-bold text-xs text-indigo-700">
+                      {p.name[0]?.toUpperCase()}
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-slate-900">{p.name}</div>
+                      <div className="text-[11px] text-slate-500">{p.email}</div>
+                    </div>
+                  </div>
                 </div>
-                <form onSubmit={handleInvitePhotographer} className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Photographer Email</label>
-                    <input
-                      type="email"
-                      required
-                      placeholder="photographer@studio.com"
-                      value={newPhotographerEmail}
-                      onChange={(e) => setNewPhotographerEmail(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:bg-white focus:border-indigo-500 outline-none"
-                    />
-                  </div>
-                  <div className="flex items-center justify-end gap-2.5 pt-2">
-                    <button
-                      type="button"
-                      onClick={() => setShowPhotoModal(false)}
-                      className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100"
-                    >
-                      Cancel
-                    </button>
-                    <button type="submit" className="lr-btn-primary-gradient px-4 py-2 rounded-xl text-xs font-bold shadow-sm">
-                      Assign Access
-                    </button>
-                  </div>
-                </form>
-              </div>
+              ))}
             </div>
           )}
         </div>
       )}
 
-      {/* ── Tab: Settings ──────────────────────────────────────────────────── */}
-      {activeTab === 'settings' && (
-        <div className="space-y-6 max-w-3xl">
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-5">
-            <h3 className="font-bold text-base text-slate-900">Event Rules & Biometrics</h3>
-
-            <div className="space-y-4 divide-y divide-slate-100">
-              <div className="flex items-center justify-between pt-1">
-                <div>
-                  <div className="text-xs font-bold text-slate-900">Event Discovery Status</div>
-                  <div className="text-[11px] text-slate-500">
-                    When active, guests can scan and search faces. When archived, search is frozen.
-                  </div>
-                </div>
-                <select className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-800 outline-none">
-                  <option value="ACTIVE">ACTIVE</option>
-                  <option value="DRAFT">DRAFT</option>
-                  <option value="ARCHIVED">ARCHIVED</option>
-                </select>
-              </div>
-
-              <div className="flex items-center justify-between pt-4">
-                <div>
-                  <div className="text-xs font-bold text-slate-900">Watermarking on Previews</div>
-                  <div className="text-[11px] text-slate-500">
-                    Stamp copyright watermark on guest gallery previews
-                  </div>
-                </div>
-                <input type="checkbox" defaultChecked className="w-4 h-4 accent-indigo-600 rounded cursor-pointer" />
-              </div>
+      {/* ── Modals ──────────────────────────────────────────────────────────── */}
+      {showAlbumModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 animate-scale-in border border-slate-200">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-base text-slate-900">Create New Album</h3>
+              <button
+                type="button"
+                onClick={() => setShowAlbumModal(false)}
+                className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700"
+              >
+                <X size={16} />
+              </button>
             </div>
-          </div>
 
-          {/* Danger Zone */}
-          <div className="rounded-2xl border border-rose-200 bg-rose-50/50 p-6 space-y-3">
-            <h3 className="font-bold text-sm text-rose-700">Danger Zone</h3>
-            <p className="text-xs text-rose-600/80 leading-relaxed">
-              Deleting this event will permanently remove all 5,420 photos, vector face representations, and delete the AWS Rekognition collection.
-            </p>
-            <button type="button" className="bg-rose-600 hover:bg-rose-700 text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 cursor-pointer transition-colors shadow-sm">
-              <Trash2 size={14} />
-              Delete Event & Face Indexes
-            </button>
+            <form onSubmit={handleCreateAlbum} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Album Title</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Reception Dinner, Day 2 Keynote"
+                  value={newAlbumName}
+                  onChange={(e) => setNewAlbumName(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 outline-none focus:bg-white focus:border-indigo-500"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAlbumModal(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="lr-btn-primary-gradient px-5 py-2 rounded-xl text-xs font-bold shadow-sm"
+                >
+                  Create Album
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showPhotoModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 animate-scale-in border border-slate-200">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-base text-slate-900">Invite Photographer</h3>
+              <button
+                type="button"
+                onClick={() => setShowPhotoModal(false)}
+                className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleInvitePhotographer} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Photographer Email</label>
+                <input
+                  type="email"
+                  required
+                  placeholder="photographer@studio.com"
+                  value={newPhotographerEmail}
+                  onChange={(e) => setNewPhotographerEmail(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 outline-none focus:bg-white focus:border-indigo-500"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowPhotoModal(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="lr-btn-primary-gradient px-5 py-2 rounded-xl text-xs font-bold shadow-sm"
+                >
+                  Send Invitation
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

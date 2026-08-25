@@ -28,55 +28,21 @@ type EventData = {
   organizerName: string;
 };
 
-const MOCK_EVENTS: Record<string, EventData> = {
-  'qr_rohan_priya_2026': {
-    id: 'evt_wedding_01',
-    name: 'Rohan & Priya Wedding Gala',
-    date: 'August 24, 2026',
-    venue: 'The Taj West End, Bangalore',
-    coverUrl: 'https://images.unsplash.com/photo-1519741497674-611481863552?w=1200&auto=format&fit=crop&q=80',
-    photosCount: 5420,
-    guestsScanned: 840,
-    organizerName: 'Apex Events & Media',
-  },
-  'qr_techvision_2026': {
-    id: 'evt_conf_02',
-    name: 'TechVision Global Summit 2026',
-    date: 'August 20, 2026',
-    venue: 'BIEC Exhibition Centre, Bangalore',
-    coverUrl: 'https://images.unsplash.com/photo-1511578314322-379afb476865?w=1200&auto=format&fit=crop&q=80',
-    photosCount: 7890,
-    guestsScanned: 950,
-    organizerName: 'GlobalSummit Media Corp',
-  },
-  'qr_apex_awards_2026': {
-    id: 'evt_corp_03',
-    name: 'Apex Annual Awards Night',
-    date: 'August 15, 2026',
-    venue: 'Grand Ballroom, ITC Gardenia',
-    coverUrl: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=1200&auto=format&fit=crop&q=80',
-    photosCount: 1510,
-    guestsScanned: 104,
-    organizerName: 'Apex Events & Media',
-  },
-};
-
-const DEFAULT_EVENT: EventData = {
-  id: 'evt_demo',
-  name: 'Demo Event',
-  date: 'August 25, 2026',
-  venue: 'Demo Venue',
-  coverUrl: 'https://images.unsplash.com/photo-1519741497674-611481863552?w=1200&auto=format&fit=crop&q=80',
-  photosCount: 1000,
-  guestsScanned: 200,
-  organizerName: 'LensRecall Demo',
-};
-
 export default function GuestEventLandingPage() {
   const params = useParams();
   const router = useRouter();
-  const token = params['token'] as string;
-  const event = MOCK_EVENTS[token] ?? DEFAULT_EVENT;
+  const token = (params?.['token'] as string) || '';
+
+  const [event, setEvent] = useState<EventData>({
+    id: 'evt_live',
+    name: 'Event Shoot',
+    date: new Date().toLocaleDateString(),
+    venue: 'Venue TBA',
+    coverUrl: 'https://images.unsplash.com/photo-1519741497674-611481863552?w=1200&auto=format&fit=crop&q=80',
+    photosCount: 0,
+    guestsScanned: 0,
+    organizerName: 'LensRecall Studio',
+  });
 
   const [step, setStep] = useState<'landing' | 'consent' | 'auth'>('landing');
   const [email, setEmail] = useState('');
@@ -88,6 +54,33 @@ export default function GuestEventLandingPage() {
     matchedCount?: number;
     verified?: boolean;
   } | null>(null);
+
+  // Load real event from localStorage matching this QR token
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('lr_organizer_events');
+      if (raw) {
+        const events = JSON.parse(raw);
+        if (Array.isArray(events)) {
+          const found = events.find((e: any) => e.qrToken === token || e.id === token) || events[0];
+          if (found) {
+            setEvent({
+              id: found.id,
+              name: found.name,
+              date: found.date || new Date().toLocaleDateString(),
+              venue: found.location || 'Venue TBA',
+              coverUrl: found.coverUrl || 'https://images.unsplash.com/photo-1519741497674-611481863552?w=1200',
+              photosCount: found.photoCount || 0,
+              guestsScanned: found.searchCount || 0,
+              organizerName: 'LensRecall Studio',
+            });
+          }
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, [token]);
 
   // Check if guest has previously verified face on this device
   useEffect(() => {
@@ -118,305 +111,301 @@ export default function GuestEventLandingPage() {
 
   const handleAuth = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!email) return;
     setLoading(true);
-    setTimeout(() => saveSessionAndNavigate(email), 500);
+
+    setTimeout(() => {
+      setLoading(false);
+      saveSessionAndNavigate(email);
+    }, 600);
   };
 
   const handleGoogleAuth = () => {
     setLoading(true);
-    setTimeout(() => saveSessionAndNavigate('guest.user@gmail.com'), 500);
-  };
-
-  const handleDirectReturn = () => {
-    const count = existingSession?.matchedCount || 18;
-    router.push(`/gallery/${event.id}?token=${token}&count=${count}`);
+    setTimeout(() => {
+      setLoading(false);
+      saveSessionAndNavigate('guest.google@gmail.com');
+    }, 800);
   };
 
   return (
-    <div className="min-h-screen bg-[#090a0f] text-slate-100 flex flex-col relative overflow-hidden selection:bg-amber-400 selection:text-black">
-      {/* Background glow meshes */}
-      <div className="absolute -top-40 -left-40 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute top-1/3 -right-40 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
-
-      {/* Cover banner */}
-      <div className="relative w-full h-64 sm:h-80 overflow-hidden shrink-0 border-b border-white/10">
-        <img
-          src={event.coverUrl}
-          alt={event.name}
-          className="w-full h-full object-cover brightness-[0.65] scale-105"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#090a0f] via-[#090a0f]/40 to-transparent" />
-
-        <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-10">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center border border-white/20">
-              <Camera size={16} className="text-amber-400" strokeWidth={2.5} />
-            </div>
-            <span className="font-bold text-white text-sm tracking-wide">LensRecall</span>
-          </Link>
-          <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-black/40 backdrop-blur-md border border-white/15">
-            <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-[11px] font-semibold text-slate-200 uppercase tracking-wider">Live Event</span>
+    <div className="min-h-screen bg-slate-50 flex flex-col justify-between p-4 sm:p-6 font-sans antialiased selection:bg-indigo-500 selection:text-white">
+      {/* ── Top Header ──────────────────────────────────────────────────────── */}
+      <header className="max-w-xl mx-auto w-full flex items-center justify-between py-2">
+        <Link href="/" className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-md">
+            LR
           </div>
-        </div>
-      </div>
+          <span className="font-extrabold text-slate-900 tracking-tight text-sm">
+            LensRecall
+          </span>
+        </Link>
 
-      {/* Main card */}
-      <div className="flex-1 flex flex-col items-center px-4 pb-12 -mt-16 z-10">
-        <div className="w-full max-w-md">
-          <div className="bg-[#12131a] rounded-3xl border border-white/10 shadow-2xl p-6 sm:p-7 backdrop-blur-xl mb-4">
-            {/* Event info */}
-            <div className="mb-5">
-              <span className="px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-[10px] font-bold text-amber-400 uppercase tracking-widest inline-block mb-2.5">
-                {event.organizerName}
+        <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-[11px] font-bold text-emerald-700">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span>Live AI Facial Search</span>
+        </div>
+      </header>
+
+      {/* ── Main Step Flow ──────────────────────────────────────────────────── */}
+      <main className="max-w-xl mx-auto w-full my-auto py-6">
+        {/* RETURNING GUEST INSTANT GALLERIES SHORTCUT CARD */}
+        {existingSession && step === 'landing' && (
+          <div className="mb-6 p-5 rounded-3xl bg-gradient-to-r from-indigo-900 to-slate-900 text-white shadow-xl border border-indigo-500/30 animate-fade-in space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-indigo-200 text-xs font-bold">
+                <UserCheck size={16} className="text-amber-400" />
+                <span>Welcome Back!</span>
+              </div>
+              <span className="px-2.5 py-0.5 rounded-full bg-indigo-500/30 text-indigo-200 text-[10px] font-mono border border-indigo-400/30">
+                {existingSession.email}
               </span>
-              <h1 className="text-2xl font-black text-white tracking-tight leading-tight">
-                {event.name}
-              </h1>
-              <p className="text-xs text-slate-400 flex items-center gap-1.5 mt-2 font-medium">
-                <Clock size={13} className="text-amber-400/80" />
-                {event.date} &bull; {event.venue}
+            </div>
+
+            <div>
+              <h3 className="font-black text-lg text-white">Your Face ID is already verified</h3>
+              <p className="text-xs text-slate-300">
+                You discovered your photos in this event earlier. Jump directly to your photo album without re-capturing a selfie.
               </p>
             </div>
 
-            {/* Event Photo & Guest Counts */}
-            <div className="grid grid-cols-2 gap-3 mb-5">
-              <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/5 text-center">
-                <div className="text-xl font-black text-white">
-                  {event.photosCount.toLocaleString()}
-                </div>
-                <div className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider mt-0.5">
-                  Photos Indexed
-                </div>
+            <div className="flex flex-col sm:flex-row gap-2 pt-1">
+              <Link
+                href={`/gallery/${event.id}?token=${token}`}
+                className="flex-1 py-2.5 px-4 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs flex items-center justify-center gap-2 shadow-md transition-all"
+              >
+                <Images size={15} />
+                <span>Open My Discovered Photos ({existingSession.matchedCount || 'All'})</span>
+                <ArrowRight size={14} />
+              </Link>
+
+              <button
+                type="button"
+                onClick={() => setExistingSession(null)}
+                className="py-2 px-3 rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <RefreshCw size={13} />
+                <span>Scan New Selfie</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 1: Event Hero Landing */}
+        {step === 'landing' && (
+          <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-xl animate-fade-in">
+            {/* Event Cover Photo */}
+            <div className="relative h-64 sm:h-72 w-full overflow-hidden bg-slate-900">
+              <img
+                src={event.coverUrl}
+                alt={event.name}
+                className="w-full h-full object-cover brightness-90 hover:scale-105 transition-transform duration-700"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/30 to-transparent" />
+
+              {/* Event Badge */}
+              <div className="absolute top-4 left-4">
+                <span className="px-3 py-1 rounded-full bg-black/60 backdrop-blur-md text-white text-xs font-bold border border-white/20">
+                  {event.organizerName}
+                </span>
               </div>
-              <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/5 text-center">
-                <div className="text-xl font-black text-amber-400">
-                  {event.guestsScanned.toLocaleString()}
-                </div>
-                <div className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider mt-0.5">
-                  Guests Matched
-                </div>
+
+              {/* Event Title on Backdrop */}
+              <div className="absolute bottom-5 inset-x-6">
+                <h1 className="text-2xl sm:text-3xl font-black text-white leading-tight drop-shadow-md">
+                  {event.name}
+                </h1>
+                <p className="text-xs sm:text-sm font-semibold text-indigo-200 mt-1 drop-shadow">
+                  {event.date} &bull; {event.venue}
+                </p>
               </div>
             </div>
 
-            {/* RETURNING GUEST INSTANT ACCESS CARD */}
-            {existingSession ? (
-              <div className="space-y-4 animate-fade-in">
-                <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/30 flex items-start gap-3.5">
-                  <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center shrink-0">
-                    <UserCheck size={20} className="text-amber-400" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-bold text-amber-300 uppercase tracking-wider">
-                      Welcome Back!
-                    </div>
-                    <div className="text-sm font-semibold text-white mt-0.5">
-                      {existingSession.email || 'Verified Guest'}
-                    </div>
-                    <p className="text-[11px] text-slate-300 mt-1 leading-relaxed">
-                      We already found your moments ({existingSession.matchedCount ?? 18} photos). You don&apos;t need to take another selfie!
-                    </p>
+            {/* Event Metrics & CTA */}
+            <div className="p-6 sm:p-8 space-y-6">
+              <div className="grid grid-cols-2 gap-3 p-4 rounded-2xl bg-slate-50 border border-slate-100 text-center">
+                <div>
+                  <div className="text-xl font-black text-slate-900">{event.photosCount}</div>
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">
+                    Photographs Indexed
                   </div>
                 </div>
+                <div className="border-l border-slate-200 pl-2">
+                  <div className="text-xl font-black text-indigo-600">{event.guestsScanned}</div>
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">
+                    Guests Found Photos
+                  </div>
+                </div>
+              </div>
 
+              <div className="space-y-3">
                 <button
                   type="button"
-                  onClick={handleDirectReturn}
-                  className="w-full py-4 rounded-2xl bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 hover:brightness-110 text-black font-extrabold text-sm flex items-center justify-center gap-2.5 shadow-lg shadow-amber-500/20 transition-all cursor-pointer"
+                  onClick={() => setStep('consent')}
+                  className="w-full py-4 px-6 rounded-2xl lr-btn-primary-gradient font-black text-sm text-white flex items-center justify-center gap-2.5 shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 hover:scale-[1.01] transition-all cursor-pointer"
                 >
-                  <Images size={18} />
-                  Open My Discovered Photos
+                  <Camera size={18} />
+                  <span>Find My Photographs with Selfie</span>
                   <ArrowRight size={16} />
                 </button>
 
-                <div className="text-center pt-1">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setExistingSession(null);
-                      setStep('consent');
-                    }}
-                    className="text-xs text-slate-400 hover:text-amber-400 transition-colors inline-flex items-center gap-1.5 cursor-pointer font-medium"
-                  >
-                    <RefreshCw size={12} />
-                    Want to update your selfie or rescan? Click here
-                  </button>
+                <p className="text-center text-xs text-slate-400 flex items-center justify-center gap-1.5 font-medium">
+                  <Shield size={13} className="text-indigo-600" />
+                  <span>Private &bull; AI searches only photographs containing your face</span>
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 2: Biometric Consent (GDPR / DPDP) */}
+        {step === 'consent' && (
+          <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-xl space-y-6 animate-fade-in">
+            <div className="text-center space-y-2">
+              <div className="w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto shadow-sm">
+                <Shield size={28} />
+              </div>
+              <h2 className="text-xl font-black text-slate-900">Biometric Privacy Notice</h2>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                LensRecall uses privacy-first Amazon Rekognition to match your selfie against photographs from <strong>{event.name}</strong>.
+              </p>
+            </div>
+
+            <div className="space-y-3 p-4 rounded-2xl bg-slate-50 border border-slate-100 text-xs text-slate-700 leading-relaxed font-medium">
+              <div className="flex items-start gap-2.5">
+                <CheckCircle2 size={16} className="text-emerald-600 shrink-0 mt-0.5" />
+                <span>Your selfie is converted into a temporary 128-dimensional mathematical vector and is never published or sold.</span>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <CheckCircle2 size={16} className="text-emerald-600 shrink-0 mt-0.5" />
+                <span>You can only view photographs that include your face. Other guests cannot view your private gallery.</span>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <Clock size={16} className="text-indigo-600 shrink-0 mt-0.5" />
+                <span>All biometric data is automatically purged according to the event's privacy policy.</span>
+              </div>
+            </div>
+
+            <label className="flex items-start gap-3 p-3 rounded-xl hover:bg-slate-50 cursor-pointer border border-transparent hover:border-slate-200 transition-colors">
+              <input
+                type="checkbox"
+                checked={consentChecked}
+                onChange={(e) => setConsentChecked(e.target.checked)}
+                className="mt-1 w-4 h-4 rounded text-indigo-600 border-slate-300 focus:ring-indigo-500 cursor-pointer"
+              />
+              <span className="text-xs text-slate-700 font-semibold leading-normal">
+                I give explicit consent for LensRecall to process my selfie vector to deliver my event photographs under GDPR Art. 9 & DPDP Act 2023.
+              </span>
+            </label>
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setStep('landing')}
+                className="flex-1 py-3 px-4 rounded-xl border border-slate-200 text-slate-700 text-xs font-bold hover:bg-slate-50 transition-colors"
+              >
+                Back
+              </button>
+              <button
+                type="button"
+                disabled={!consentChecked}
+                onClick={() => setStep('auth')}
+                className="flex-2 py-3 px-6 rounded-xl lr-btn-primary-gradient text-white text-xs font-black flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none shadow-md transition-all cursor-pointer"
+              >
+                <span>Agree & Continue</span>
+                <ArrowRight size={15} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 3: Guest Authentication */}
+        {step === 'auth' && (
+          <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-xl space-y-6 animate-fade-in">
+            <div className="text-center space-y-2">
+              <div className="w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto shadow-sm">
+                <Sparkles size={28} className="text-amber-500" />
+              </div>
+              <h2 className="text-xl font-black text-slate-900">Where should we deliver your photos?</h2>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                Sign in with Google or enter your email so you can access and download your high-resolution photographs anytime.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleGoogleAuth}
+              disabled={loading}
+              className="w-full py-3.5 px-4 rounded-2xl border border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 text-slate-800 text-xs font-bold flex items-center justify-center gap-3 shadow-sm transition-all cursor-pointer"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24">
+                <path
+                  fill="#4285F4"
+                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                />
+                <path
+                  fill="#34A853"
+                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                />
+                <path
+                  fill="#FBBC05"
+                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                />
+                <path
+                  fill="#EA4335"
+                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                />
+              </svg>
+              <span>Continue with Google</span>
+            </button>
+
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-px bg-slate-200" />
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">or email</span>
+              <div className="flex-1 h-px bg-slate-200" />
+            </div>
+
+            <form onSubmit={handleAuth} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Email Address
+                </label>
+                <div className="relative">
+                  <Mail size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="email"
+                    required
+                    placeholder="guest@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-xs text-slate-900 outline-none focus:bg-white focus:border-indigo-500 transition-colors"
+                  />
                 </div>
               </div>
-            ) : (
-              /* FIRST-TIME GUEST DISCOVERY FLOW */
-              <>
-                <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/5 flex items-start gap-3 mb-5">
-                  <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
-                    <Sparkles size={18} className="text-amber-400" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-bold text-white">AWS AI Face Recognition</div>
-                    <div className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
-                      Capture a quick selfie to discover all the moments you appeared in across {event.photosCount.toLocaleString()} high-res photos.
-                    </div>
-                  </div>
-                </div>
 
-                {step === 'landing' && (
-                  <button
-                    type="button"
-                    onClick={() => setStep('consent')}
-                    className="w-full py-4 rounded-2xl bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 hover:brightness-110 text-black font-black text-sm flex items-center justify-center gap-2.5 shadow-lg shadow-amber-500/20 transition-all cursor-pointer"
-                  >
-                    <Sparkles size={17} />
-                    Find My Photos
-                    <ArrowRight size={16} />
-                  </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3.5 px-4 rounded-xl lr-btn-primary-gradient text-white text-xs font-black flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer"
+              >
+                {loading ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <>
+                    <span>Proceed to Camera Selfie Capture</span>
+                    <ArrowRight size={15} />
+                  </>
                 )}
-
-                {step === 'consent' && (
-                  <div className="space-y-4 animate-fade-in">
-                    <div>
-                      <h2 className="text-base font-bold text-white">Biometric Consent</h2>
-                      <p className="text-xs text-slate-400 mt-1">
-                        To find your photos, AWS Rekognition will extract facial vectors from your selfie. Your vectors are isolated exclusively to this event.
-                      </p>
-                    </div>
-
-                    <div className="space-y-2 text-xs text-slate-300 bg-white/[0.02] p-3.5 rounded-xl border border-white/5">
-                      {[
-                        'Vectors stored in event-isolated AWS collection',
-                        'Strict GDPR & DPDP compliance & 90-day auto-purge',
-                        'You can delete your biometric data anytime with 1 click',
-                      ].map((item) => (
-                        <div key={item} className="flex items-center gap-2">
-                          <CheckCircle2 size={13} className="text-emerald-400 shrink-0" />
-                          <span>{item}</span>
-                        </div>
-                      ))}
-                    </div>
-
-                    <label className="flex items-start gap-3 cursor-pointer pt-1">
-                      <input
-                        type="checkbox"
-                        checked={consentChecked}
-                        onChange={(e) => setConsentChecked(e.target.checked)}
-                        className="mt-0.5 w-4 h-4 accent-amber-400 rounded cursor-pointer"
-                      />
-                      <span className="text-[11px] text-slate-300 leading-snug">
-                        I consent to face biometric analysis for photo discovery per the{' '}
-                        <Link href="/privacy" className="text-amber-400 font-semibold hover:underline">
-                          Privacy Policy
-                        </Link>.
-                      </span>
-                    </label>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (consentChecked) setStep('auth');
-                      }}
-                      disabled={!consentChecked}
-                      className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-400 to-amber-500 hover:brightness-110 text-black font-extrabold text-sm flex items-center justify-center gap-2 disabled:opacity-30 disabled:cursor-not-allowed shadow-md transition-all cursor-pointer"
-                    >
-                      Continue
-                      <ArrowRight size={15} />
-                    </button>
-                  </div>
-                )}
-
-                {step === 'auth' && (
-                  <div className="space-y-4 animate-fade-in">
-                    <div>
-                      <h2 className="text-base font-bold text-white">Sign In to Save Your Matches</h2>
-                      <p className="text-xs text-slate-400 mt-0.5">
-                        Your account saves your photos so you can revisit them anytime without retaking a selfie.
-                      </p>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={handleGoogleAuth}
-                      disabled={loading}
-                      className="w-full py-3.5 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 text-sm font-bold text-white flex items-center justify-center gap-2.5 transition-all cursor-pointer"
-                    >
-                      {loading ? (
-                        <Loader2 size={16} className="animate-spin text-amber-400" />
-                      ) : (
-                        <>
-                          <svg className="w-4 h-4" viewBox="0 0 24 24">
-                            <path
-                              fill="#EA4335"
-                              d="M12 5c1.6 0 3 .6 4.1 1.6l3.1-3.1C17.3 1.7 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.3 9 5 12 5z"
-                            />
-                            <path
-                              fill="#4285F4"
-                              d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.8z"
-                            />
-                            <path
-                              fill="#FBBC05"
-                              d="M5.6 14.8c-.2-.7-.4-1.5-.4-2.3s.2-1.6.4-2.3L1.9 7.3C.7 9.7 0 12.3 0 15.2s.7 5.5 1.9 7.9l3.7-2.9z"
-                            />
-                            <path
-                              fill="#34A853"
-                              d="M12 23.5c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2.3-6.4-5.2L1.9 16.5C3.7 20.2 7.5 23.5 12 23.5z"
-                            />
-                          </svg>
-                          Continue with Google
-                        </>
-                      )}
-                    </button>
-
-                    <div className="relative my-2">
-                      <div className="absolute inset-0 flex items-center">
-                        <div className="w-full border-t border-white/10" />
-                      </div>
-                      <div className="relative flex justify-center">
-                        <span className="bg-[#12131a] px-3 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                          or sign in with email
-                        </span>
-                      </div>
-                    </div>
-
-                    <form onSubmit={handleAuth} className="space-y-3">
-                      <div className="relative">
-                        <input
-                          type="email"
-                          required
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          placeholder="guest@example.com"
-                          className="w-full bg-white/[0.04] border border-white/15 rounded-xl pl-10 pr-3.5 py-3 text-xs text-white placeholder:text-slate-500 outline-none focus:border-amber-400 transition-colors"
-                        />
-                        <Mail
-                          size={15}
-                          className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
-                        />
-                      </div>
-                      <button
-                        type="submit"
-                        disabled={loading}
-                        className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:brightness-110 text-black font-extrabold text-xs flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer"
-                      >
-                        {loading ? (
-                          <Loader2 size={16} className="animate-spin" />
-                        ) : (
-                          <>
-                            <Sparkles size={14} />
-                            Proceed to Live Camera
-                          </>
-                        )}
-                      </button>
-                    </form>
-                  </div>
-                )}
-              </>
-            )}
+              </button>
+            </form>
           </div>
+        )}
+      </main>
 
-          {/* Privacy footer */}
-          <div className="flex items-center justify-center gap-2 text-[11px] text-slate-500 font-medium">
-            <Shield size={13} className="text-emerald-400/80" />
-            <span>GDPR/DPDP Biometric Encrypted &bull; 90-Day Auto-Purge</span>
-          </div>
-        </div>
-      </div>
+      {/* ── Footer ─────────────────────────────────────────────────────────── */}
+      <footer className="max-w-xl mx-auto w-full text-center py-4 text-xs text-slate-400">
+        Powered by <strong className="text-slate-600 font-bold">LensRecall AI</strong> &bull; Amazon Rekognition Face Indexing
+      </footer>
     </div>
   );
 }

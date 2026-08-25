@@ -15,27 +15,41 @@ import {
   Upload,
 } from 'lucide-react';
 
-// Event lookup by eventId
-const EVENT_DATA: Record<string, { name: string; photoCount: number; token: string }> = {
-  evt_wedding_01: { name: 'Rohan & Priya Wedding Gala', photoCount: 5420, token: 'qr_rohan_priya_2026' },
-  evt_conf_02: { name: 'TechVision Global Summit 2026', photoCount: 7890, token: 'qr_techvision_2026' },
-  evt_corp_03: { name: 'Apex Annual Awards Night', photoCount: 1510, token: 'qr_apex_awards_2026' },
-};
-
 type CameraStatus = 'idle' | 'requesting' | 'active' | 'denied' | 'error';
 
 function SearchContent() {
   const searchParams = useSearchParams();
-  const token = searchParams.get('token') || 'qr_rohan_priya_2026';
-  const eventId = searchParams.get('eventId') || 'evt_wedding_01';
+  const token = searchParams.get('token') || '';
+  const eventId = searchParams.get('eventId') || '';
   const router = useRouter();
 
-  // Look up event info
-  const eventInfo = EVENT_DATA[eventId] ?? {
-    name: 'Event',
-    photoCount: 1000,
+  // Dynamic event lookup
+  const [eventInfo, setEventInfo] = useState<{ name: string; photoCount: number; token: string }>({
+    name: 'Event Shoot',
+    photoCount: 0,
     token,
-  };
+  });
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('lr_organizer_events');
+      if (raw) {
+        const events = JSON.parse(raw);
+        if (Array.isArray(events)) {
+          const found = events.find((e: any) => e.id === eventId || e.qrToken === token) || events[0];
+          if (found) {
+            setEventInfo({
+              name: found.name,
+              photoCount: found.photoCount || 0,
+              token: found.qrToken || token,
+            });
+          }
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, [eventId, token]);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);

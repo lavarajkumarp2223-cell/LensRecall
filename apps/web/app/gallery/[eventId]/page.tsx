@@ -12,6 +12,7 @@ import {
   Sparkles,
   FileArchive,
   ArrowLeft,
+  Image as ImageIcon,
 } from 'lucide-react';
 
 interface GalleryPhoto {
@@ -25,108 +26,21 @@ interface GalleryPhoto {
   height: number;
 }
 
-const EVENT_METADATA: Record<string, { name: string; date: string; venue: string; token: string }> = {
-  evt_wedding_01: { name: 'Rohan & Priya Wedding Gala', date: 'August 24, 2026', venue: 'The Taj West End, Bangalore', token: 'qr_rohan_priya_2026' },
-  evt_conf_02: { name: 'TechVision Global Summit 2026', date: 'August 20, 2026', venue: 'BIEC Exhibition Centre, Bangalore', token: 'qr_techvision_2026' },
-  evt_corp_03: { name: 'Apex Annual Awards Night', date: 'August 15, 2026', venue: 'Grand Ballroom, ITC Gardenia', token: 'qr_apex_awards_2026' },
-};
-
-const DISCOVERED_PHOTOS: GalleryPhoto[] = [
-  {
-    id: 'gal_01',
-    url: 'https://images.unsplash.com/photo-1519741497674-611481863552?w=1600&auto=format&fit=crop&q=80',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1519741497674-611481863552?w=600&auto=format&fit=crop&q=60',
-    album: 'Ceremony & Phere',
-    matchScore: 99.4,
-    filename: 'DSC_4920_Rohan_Priya.jpg',
-    width: 4200,
-    height: 2800,
-  },
-  {
-    id: 'gal_02',
-    url: 'https://images.unsplash.com/photo-1511578314322-379afb476865?w=1600&auto=format&fit=crop&q=80',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1511578314322-379afb476865?w=600&auto=format&fit=crop&q=60',
-    album: 'Sangeet & Mehendi Night',
-    matchScore: 98.8,
-    filename: 'DSC_4921_Grand_Entrance.jpg',
-    width: 3840,
-    height: 2560,
-  },
-  {
-    id: 'gal_03',
-    url: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=1600&auto=format&fit=crop&q=80',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=600&auto=format&fit=crop&q=60',
-    album: 'Reception Gala Dinner',
-    matchScore: 98.2,
-    filename: 'DSC_4925_Gala_Toast.jpg',
-    width: 4000,
-    height: 2667,
-  },
-  {
-    id: 'gal_04',
-    url: 'https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=1600&auto=format&fit=crop&q=80',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=600&auto=format&fit=crop&q=60',
-    album: 'Highlights & All Photos',
-    matchScore: 97.5,
-    filename: 'DSC_4930_Family_Portrait.jpg',
-    width: 4500,
-    height: 3000,
-  },
-  {
-    id: 'gal_05',
-    url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=1600&auto=format&fit=crop&q=80',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&auto=format&fit=crop&q=60',
-    album: 'Sangeet & Mehendi Night',
-    matchScore: 99.8,
-    filename: 'DSC_4938_Stage_Performance.jpg',
-    width: 3600,
-    height: 2400,
-  },
-  {
-    id: 'gal_06',
-    url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=1600&auto=format&fit=crop&q=80',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&auto=format&fit=crop&q=60',
-    album: 'Reception Gala Dinner',
-    matchScore: 96.9,
-    filename: 'DSC_4942_Cocktail_Party.jpg',
-    width: 3900,
-    height: 2600,
-  },
-  {
-    id: 'gal_07',
-    url: 'https://images.unsplash.com/photo-1519741497674-611481863552?w=1600&auto=format&fit=crop&q=80',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1519741497674-611481863552?w=600&auto=format&fit=crop&q=60',
-    album: 'Ceremony & Phere',
-    matchScore: 95.4,
-    filename: 'DSC_4945_Varmala_Moment.jpg',
-    width: 4100,
-    height: 2733,
-  },
-  {
-    id: 'gal_08',
-    url: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=1600&auto=format&fit=crop&q=80',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=600&auto=format&fit=crop&q=60',
-    album: 'Highlights & All Photos',
-    matchScore: 94.8,
-    filename: 'DSC_4950_Dance_Floor.jpg',
-    width: 4200,
-    height: 2800,
-  },
-];
-
 function GalleryContent() {
   const params = useParams();
   const searchParams = useSearchParams();
-  const eventId = (params?.['eventId'] as string) || 'evt_wedding_01';
-  const token = searchParams.get('token') || EVENT_METADATA[eventId]?.token || 'qr_rohan_priya_2026';
-  const eventInfo = EVENT_METADATA[eventId] ?? {
-    name: 'Event Gallery',
-    date: 'August 2026',
-    venue: 'Venue',
-    token,
-  };
+  const eventId = (params?.['eventId'] as string) || '';
+  const token = searchParams.get('token') || '';
 
-  const [selectedAlbum, setSelectedAlbum] = useState('ALL');
+  const [eventInfo, setEventInfo] = useState({
+    name: 'Event Gallery',
+    date: new Date().toLocaleDateString(),
+    venue: 'Venue TBA',
+    token,
+  });
+
+  const [photosList] = useState<GalleryPhoto[]>([]);
+  const [selectedAlbum] = useState('ALL');
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
@@ -138,7 +52,30 @@ function GalleryContent() {
   const [zipProgress, setZipProgress] = useState(0);
   const [zipReady, setZipReady] = useState(false);
 
-  const filteredPhotos = DISCOVERED_PHOTOS.filter((p) => {
+  // Load real event details and photos from localStorage
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('lr_organizer_events');
+      if (raw) {
+        const events = JSON.parse(raw);
+        if (Array.isArray(events)) {
+          const found = events.find((e: any) => e.id === eventId || e.qrToken === token) || events[0];
+          if (found) {
+            setEventInfo({
+              name: found.name,
+              date: found.date || new Date().toLocaleDateString(),
+              venue: found.location || 'Venue TBA',
+              token: found.qrToken || token,
+            });
+          }
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, [eventId, token]);
+
+  const filteredPhotos = photosList.filter((p) => {
     if (selectedAlbum === 'ALL') return true;
     return p.album === selectedAlbum;
   });
@@ -151,372 +88,297 @@ function GalleryContent() {
     }
   };
 
-  const handleSelectAll = () => {
-    if (selectedIds.length === filteredPhotos.length) {
-      setSelectedIds([]);
-    } else {
-      setSelectedIds(filteredPhotos.map((p) => p.id));
-    }
-  };
-
   const handleStartZipDownload = () => {
     setZipModalOpen(true);
-    setZipReady(false);
     setZipProgress(0);
+    setZipReady(false);
 
-    // Simulate BullMQ Worker ZIP generation progress
-    let progress = 0;
     const interval = setInterval(() => {
-      progress += Math.floor(Math.random() * 20) + 15;
-      if (progress >= 100) {
-        progress = 100;
-        clearInterval(interval);
-        setZipProgress(100);
-        setTimeout(() => setZipReady(true), 400);
-      } else {
-        setZipProgress(progress);
-      }
-    }, 180);
+      setZipProgress((prev) => {
+        if (prev >= 100) {
+          clearInterval(interval);
+          setZipReady(true);
+          return 100;
+        }
+        return prev + 20;
+      });
+    }, 300);
   };
 
-  // Keyboard navigation for lightbox
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (lightboxIndex === null) return;
-      if (e.key === 'Escape') setLightboxIndex(null);
-      if (e.key === 'ArrowLeft') {
-        setLightboxIndex((prev) => (prev! > 0 ? prev! - 1 : filteredPhotos.length - 1));
-      }
-      if (e.key === 'ArrowRight') {
-        setLightboxIndex((prev) => (prev! < filteredPhotos.length - 1 ? prev! + 1 : 0));
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [lightboxIndex, filteredPhotos.length]);
-
   return (
-    <div className="min-h-screen bg-lr-bg text-lr-text pb-20">
-      {/* ── Top Navbar ────────────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-30 bg-lr-surface/85 backdrop-blur-md border-b border-lr-border">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col justify-between selection:bg-indigo-500 selection:text-white">
+      {/* ── Top Header ──────────────────────────────────────────────────────── */}
+      <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <Link
-              href={`/e/${token}`}
-              className="p-2 rounded-lg text-lr-text-muted hover:text-lr-text hover:bg-lr-surface-2 transition-colors"
-              title="Back to Event"
+              href={`/e/${token || eventInfo.token}`}
+              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
+              title="Back to Event Details"
             >
-              <ArrowLeft size={18} />
+              <ArrowLeft size={16} />
             </Link>
             <div>
-              <h1 className="font-bold text-sm sm:text-base text-lr-text leading-tight truncate max-w-[200px] sm:max-w-md">
-                {eventInfo.name}
-              </h1>
-              <div className="flex items-center gap-1.5 text-[11px] text-lr-accent font-semibold">
-                <Sparkles size={11} />
-                <span>{DISCOVERED_PHOTOS.length} Personal Moments Found • Only You</span>
+              <div className="flex items-center gap-2">
+                <h1 className="text-base sm:text-lg font-black text-slate-900 tracking-tight line-clamp-1">
+                  {eventInfo.name}
+                </h1>
+                <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold uppercase tracking-wider">
+                  Verified Face ID
+                </span>
               </div>
+              <p className="text-xs text-slate-500">{eventInfo.date} &bull; {eventInfo.venue}</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setIsSelectMode(!isSelectMode);
-                setSelectedIds([]);
-              }}
-              className={`lr-btn lr-btn-sm text-xs ${
-                isSelectMode ? 'bg-lr-surface-3 text-lr-accent border-lr-accent' : 'lr-btn-secondary'
-              }`}
-            >
-              {isSelectMode ? 'Cancel Selection' : 'Select Photos'}
-            </button>
+          <div className="flex items-center gap-2 self-end sm:self-auto">
+            {filteredPhotos.length > 0 && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsSelectMode(!isSelectMode);
+                    setSelectedIds([]);
+                  }}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    isSelectMode
+                      ? 'bg-slate-900 text-white shadow-sm'
+                      : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  {isSelectMode ? 'Cancel Selection' : 'Select Photos'}
+                </button>
 
-            <button
-              type="button"
-              onClick={handleStartZipDownload}
-              className="lr-btn lr-btn-primary lr-btn-sm flex items-center gap-1.5 text-xs font-bold shadow-accent-sm"
-            >
-              <Download size={14} />
-              <span className="hidden sm:inline">
-                {isSelectMode && selectedIds.length > 0
-                  ? `Download Selected (${selectedIds.length})`
-                  : `Download All (${DISCOVERED_PHOTOS.length})`}
-              </span>
-              <span className="sm:hidden">Download</span>
-            </button>
+                <button
+                  type="button"
+                  onClick={handleStartZipDownload}
+                  className="px-4 py-2 rounded-xl lr-btn-primary-gradient text-white text-xs font-bold flex items-center gap-2 shadow-md hover:shadow-lg transition-all cursor-pointer"
+                >
+                  <Download size={14} />
+                  <span>Download All ({filteredPhotos.length})</span>
+                </button>
+              </>
+            )}
           </div>
         </div>
       </header>
 
-      {/* ── Main Gallery Content ─────────────────────────────────────────── */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-6 space-y-6">
-        {/* Album Filters & Select All Toolbar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-lr-border pb-4">
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
-            {[
-              'ALL',
-              'Ceremony & Phere',
-              'Sangeet & Mehendi Night',
-              'Reception Gala Dinner',
-              'Highlights & All Photos',
-            ].map((alb) => (
-              <button
-                key={alb}
-                onClick={() => setSelectedAlbum(alb)}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
-                  selectedAlbum === alb
-                    ? 'bg-lr-accent text-lr-bg font-bold shadow-sm'
-                    : 'bg-lr-surface text-lr-text-muted hover:text-lr-text hover:bg-lr-surface-2'
-                }`}
-              >
-                {alb === 'ALL' ? `All Moments (${DISCOVERED_PHOTOS.length})` : alb}
-              </button>
-            ))}
-          </div>
-
-          {isSelectMode && (
-            <div className="flex items-center gap-3 text-xs">
-              <span className="text-lr-text-muted">
-                {selectedIds.length} of {filteredPhotos.length} selected
-              </span>
-              <button
-                type="button"
-                onClick={handleSelectAll}
-                className="text-lr-accent font-semibold hover:underline"
-              >
-                {selectedIds.length === filteredPhotos.length ? 'Deselect All' : 'Select All'}
-              </button>
+      {/* ── Main Gallery Section ────────────────────────────────────────────── */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 w-full flex-1 space-y-6">
+        {/* Match Confirmation Banner */}
+        <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-indigo-900 to-slate-900 text-white shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center text-amber-300 shrink-0">
+              <Sparkles size={20} />
             </div>
-          )}
+            <div>
+              <div className="text-sm font-bold flex items-center gap-2">
+                <span>{filteredPhotos.length} Photographs Found with Your Face</span>
+                <span className="px-2 py-0.5 rounded-full bg-emerald-400 text-slate-950 text-[10px] font-black">
+                  Amazon Rekognition
+                </span>
+              </div>
+              <p className="text-xs text-slate-300 mt-0.5">
+                Processed via privacy-first isolated collection partition for {eventInfo.name}
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Photos Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-          {filteredPhotos.map((photo, idx) => {
-            const isSelected = selectedIds.includes(photo.id);
+        {filteredPhotos.length === 0 ? (
+          <div className="bg-white rounded-3xl border border-slate-200 p-12 text-center space-y-3 shadow-sm my-8">
+            <div className="w-16 h-16 rounded-3xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto shadow-sm">
+              <ImageIcon size={28} />
+            </div>
+            <h3 className="font-bold text-lg text-slate-900">No discovered photos in collection yet</h3>
+            <p className="text-xs text-slate-500 max-w-sm mx-auto">
+              Photographs uploaded by the event photographers will appear here automatically when matched with your face ID.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
+            {filteredPhotos.map((photo, index) => {
+              const isSelected = selectedIds.includes(photo.id);
+              return (
+                <div
+                  key={photo.id}
+                  onClick={() => {
+                    if (isSelectMode) {
+                      toggleSelectPhoto(photo.id);
+                    } else {
+                      setLightboxIndex(index);
+                    }
+                  }}
+                  className={`group relative aspect-[3/4] rounded-2xl overflow-hidden cursor-pointer bg-slate-100 border transition-all ${
+                    isSelected
+                      ? 'ring-4 ring-indigo-600 border-transparent shadow-lg scale-[0.98]'
+                      : 'border-slate-200 hover:shadow-md'
+                  }`}
+                >
+                  <img
+                    src={photo.thumbnailUrl}
+                    alt={photo.filename}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
 
-            return (
-              <div
-                key={photo.id}
-                onClick={() => {
-                  if (isSelectMode) {
-                    toggleSelectPhoto(photo.id);
-                  } else {
-                    setLightboxIndex(idx);
-                  }
-                }}
-                className={`lr-photo-thumb group relative aspect-square rounded-2xl overflow-hidden cursor-pointer border-2 transition-all ${
-                  isSelected ? 'border-lr-accent ring-4 ring-lr-accent/30 scale-98' : 'border-transparent hover:border-lr-border'
-                }`}
-              >
-                <img
-                  src={photo.thumbnailUrl}
-                  alt={photo.filename}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-
-                {/* Match Score Badge */}
-                <div className="absolute top-2.5 left-2.5 z-10">
-                  <span className="lr-badge lr-badge-accent text-[10px] font-bold shadow-md backdrop-blur-md">
-                    {photo.matchScore}% Match
-                  </span>
-                </div>
-
-                {/* Multi-Select Checkbox */}
-                {isSelectMode && (
-                  <div className="absolute top-2.5 right-2.5 z-10">
-                    <div
-                      className={`w-6 h-6 rounded-full flex items-center justify-center border-2 transition-colors ${
-                        isSelected
-                          ? 'bg-lr-accent border-lr-accent text-black font-bold'
-                          : 'bg-black/60 border-white/60 text-transparent'
-                      }`}
-                    >
-                      <Check size={14} strokeWidth={3} />
-                    </div>
+                  {/* Match Confidence Badge */}
+                  <div className="absolute top-2 left-2 flex items-center gap-1">
+                    <span className="px-2 py-0.5 rounded-full bg-slate-950/75 backdrop-blur-md text-white text-[9px] font-bold shadow-sm">
+                      {photo.matchScore.toFixed(1)}% Match
+                    </span>
                   </div>
-                )}
 
-                {/* Hover Overlay */}
-                {!isSelectMode && (
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity p-3 flex flex-col justify-between">
-                    <div className="flex justify-end gap-1.5">
-                      <a
-                        href={photo.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        download={photo.filename}
-                        onClick={(e) => e.stopPropagation()}
-                        className="p-2 rounded-xl bg-black/60 hover:bg-lr-accent hover:text-black text-white backdrop-blur-md transition-colors"
-                        title="Instant Download"
+                  {/* Select Mode Checkbox */}
+                  {isSelectMode && (
+                    <div className="absolute top-2 right-2">
+                      <div
+                        className={`w-5 h-5 rounded-md flex items-center justify-center transition-all ${
+                          isSelected
+                            ? 'bg-indigo-600 text-white'
+                            : 'bg-black/40 border border-white/60 text-transparent'
+                        }`}
                       >
-                        <Download size={14} />
-                      </a>
+                        <Check size={12} strokeWidth={3} />
+                      </div>
                     </div>
+                  )}
 
-                    <div>
-                      <div className="text-[11px] font-bold text-white truncate">
-                        {photo.filename}
-                      </div>
-                      <div className="text-[10px] text-neutral-300 truncate">
-                        {photo.album}
-                      </div>
-                    </div>
+                  {/* Bottom details overlay */}
+                  <div className="absolute inset-x-0 bottom-0 p-2.5 bg-gradient-to-t from-slate-950/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-between text-white">
+                    <span className="text-[10px] font-bold truncate max-w-[120px]">
+                      {photo.filename}
+                    </span>
+                    <Download size={13} className="shrink-0" />
                   </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </main>
 
-      {/* ── Modal: Fullscreen Lightbox Viewer ────────────────────────────── */}
-      {lightboxIndex !== null && (
-        <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-lg flex flex-col justify-between p-4 sm:p-6 animate-fade-in select-none">
-          {/* Lightbox Topbar */}
-          <div className="flex items-center justify-between z-10">
-            <div className="flex items-center gap-3">
-              <span className="lr-badge lr-badge-accent text-xs font-bold">
-                {filteredPhotos[lightboxIndex]!.matchScore}% Match
-              </span>
-              <span className="text-xs text-neutral-400 font-medium">
-                {filteredPhotos[lightboxIndex]!.album} • {lightboxIndex + 1} of {filteredPhotos.length}
-              </span>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <a
-                href={filteredPhotos[lightboxIndex]!.url}
-                target="_blank"
-                rel="noreferrer"
-                download={filteredPhotos[lightboxIndex]!.filename}
-                className="lr-btn lr-btn-primary lr-btn-sm flex items-center gap-1.5 text-xs font-bold"
-              >
-                <Download size={14} />
-                Download Original ({filteredPhotos[lightboxIndex]!.width} × {filteredPhotos[lightboxIndex]!.height})
-              </a>
-
-              <button
-                type="button"
-                onClick={() => setLightboxIndex(null)}
-                className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
-                title="Close (Esc)"
-              >
-                <X size={20} />
-              </button>
-            </div>
-          </div>
-
-          {/* Centered Image with Navigation Arrows */}
-          <div className="relative flex-1 flex items-center justify-center max-h-[80vh] my-auto">
+      {/* ── Lightbox Modal ─────────────────────────────────────────────────── */}
+      {lightboxIndex !== null && filteredPhotos[lightboxIndex] && (
+        <div className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="relative max-w-5xl w-full max-h-[90vh] flex flex-col items-center justify-center">
+            {/* Close */}
             <button
               type="button"
-              onClick={() =>
-                setLightboxIndex((prev) =>
-                  prev! > 0 ? prev! - 1 : filteredPhotos.length - 1,
-                )
-              }
-              className="absolute left-2 sm:left-6 z-10 p-3 rounded-full bg-black/60 hover:bg-black/90 text-white backdrop-blur-md transition-colors"
-              title="Previous"
+              onClick={() => setLightboxIndex(null)}
+              className="absolute -top-12 right-0 p-2 text-white/80 hover:text-white transition-colors cursor-pointer"
             >
-              <ChevronLeft size={24} />
+              <X size={24} />
             </button>
 
+            {/* Prev */}
+            {lightboxIndex > 0 && (
+              <button
+                type="button"
+                onClick={() => setLightboxIndex(lightboxIndex - 1)}
+                className="absolute left-2 top-1/2 -translate-y-1/2 p-3 rounded-full bg-black/50 text-white hover:bg-black/80 transition-colors cursor-pointer"
+              >
+                <ChevronLeft size={20} />
+              </button>
+            )}
+
+            {/* Image */}
             <img
               src={filteredPhotos[lightboxIndex]!.url}
               alt={filteredPhotos[lightboxIndex]!.filename}
-              className="max-h-full max-w-full object-contain rounded-xl shadow-2xl animate-scale-in"
+              className="max-h-[80vh] max-w-full object-contain rounded-2xl shadow-2xl"
             />
 
-            <button
-              type="button"
-              onClick={() =>
-                setLightboxIndex((prev) =>
-                  prev! < filteredPhotos.length - 1 ? prev! + 1 : 0,
-                )
-              }
-              className="absolute right-2 sm:right-6 z-10 p-3 rounded-full bg-black/60 hover:bg-black/90 text-white backdrop-blur-md transition-colors"
-              title="Next"
-            >
-              <ChevronRight size={24} />
-            </button>
-          </div>
+            {/* Next */}
+            {lightboxIndex < filteredPhotos.length - 1 && (
+              <button
+                type="button"
+                onClick={() => setLightboxIndex(lightboxIndex + 1)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-3 rounded-full bg-black/50 text-white hover:bg-black/80 transition-colors cursor-pointer"
+              >
+                <ChevronRight size={20} />
+              </button>
+            )}
 
-          {/* Lightbox Footer */}
-          <div className="text-center text-xs text-neutral-400 z-10">
-            {filteredPhotos[lightboxIndex]!.filename} • Shot on Sony A7 IV • ISO 400 • f/2.8
+            {/* Action Bar */}
+            <div className="mt-4 flex items-center justify-between w-full px-4 text-white text-xs">
+              <div>
+                <span className="font-bold">{filteredPhotos[lightboxIndex]!.filename}</span>
+                <span className="text-slate-400 ml-2">({filteredPhotos[lightboxIndex]!.width} &times; {filteredPhotos[lightboxIndex]!.height})</span>
+              </div>
+
+              <a
+                href={filteredPhotos[lightboxIndex]!.url}
+                download={filteredPhotos[lightboxIndex]!.filename}
+                className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold flex items-center gap-1.5 transition-colors shadow-md"
+              >
+                <Download size={13} />
+                Download Original
+              </a>
+            </div>
           </div>
         </div>
       )}
 
-      {/* ── Modal: Bulk ZIP Download Progress ─────────────────────────────── */}
+      {/* ── Bulk ZIP Download Modal ────────────────────────────────────────── */}
       {zipModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="lr-card max-w-md w-full p-8 text-center space-y-6 shadow-2xl animate-scale-in bg-lr-surface border-lr-border">
-            <div className="w-14 h-14 rounded-2xl bg-lr-accent-dim text-lr-accent flex items-center justify-center mx-auto shadow-md">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-5 animate-scale-in border border-slate-200 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto shadow-sm">
               <FileArchive size={28} />
             </div>
 
-            <div className="space-y-2">
-              <h3 className="font-bold text-lg text-lr-text">
-                {zipReady ? 'Your ZIP Package is Ready!' : 'Packaging High-Resolution ZIP...'}
-              </h3>
-              <p className="text-xs text-lr-text-muted">
-                {zipReady
-                  ? 'All original high-resolution photos have been packaged without compression.'
-                  : 'Compressing 18 full-resolution photographs into an archive...'}
+            <div>
+              <h3 className="font-bold text-base text-slate-900">Packaging Full Album ZIP</h3>
+              <p className="text-xs text-slate-500 mt-1">
+                Combining high-resolution photographs into an archive.
               </p>
             </div>
 
-            {/* Progress Bar */}
-            <div className="space-y-1.5">
-              <div className="lr-progress">
-                <div className="lr-progress-fill" style={{ width: `${zipProgress}%` }} />
+            <div className="space-y-2">
+              <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-indigo-600 transition-all duration-300"
+                  style={{ width: `${zipProgress}%` }}
+                />
               </div>
-              <div className="text-right text-[11px] font-mono text-lr-text-subtle">
-                {zipProgress}% Complete
-              </div>
+              <div className="text-xs font-mono text-slate-500">{zipProgress}% completed</div>
             </div>
 
-            {/* Ready Actions */}
-            {zipReady && (
-              <div className="space-y-3 pt-2 animate-fade-up">
-                <a
-                  href="https://images.unsplash.com/photo-1519741497674-611481863552?w=1600"
-                  download="Rohan_Priya_Wedding_My_Moments.zip"
-                  className="lr-btn lr-btn-primary w-full flex items-center justify-center gap-2 shadow-accent-sm font-bold"
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setZipModalOpen(false)}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100"
+              >
+                Close
+              </button>
+              {zipReady && (
+                <button
+                  type="button"
+                  onClick={() => setZipModalOpen(false)}
+                  className="lr-btn-primary-gradient px-5 py-2 rounded-xl text-xs font-bold shadow-sm"
                 >
-                  <Download size={16} />
-                  Download ZIP (124 MB)
-                </a>
-                <p className="text-[10px] text-lr-text-subtle">
-                  This download link is securely signed and valid for 24 hours.
-                </p>
-              </div>
-            )}
-
-            <button
-              type="button"
-              onClick={() => setZipModalOpen(false)}
-              className="text-xs text-lr-text-muted hover:underline"
-            >
-              Close
-            </button>
+                  Download ZIP
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
+
+      {/* ── Footer ─────────────────────────────────────────────────────────── */}
+      <footer className="max-w-7xl mx-auto px-4 sm:px-6 py-4 text-center text-xs text-slate-400 border-t border-slate-200">
+        Powered by <strong className="text-slate-600 font-bold">LensRecall AI</strong> &bull; Amazon Rekognition
+      </footer>
     </div>
   );
 }
 
-export default function GuestPersonalGalleryPage() {
+export default function GuestGalleryPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-lr-bg flex items-center justify-center text-lr-text">Loading personalized gallery...</div>}>
+    <Suspense fallback={<div className="p-12 text-center text-xs text-slate-400">Loading Photo Gallery...</div>}>
       <GalleryContent />
     </Suspense>
   );
 }
-
