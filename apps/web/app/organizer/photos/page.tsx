@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   Upload,
   Trash2,
@@ -9,7 +9,9 @@ import {
   Sparkles,
   Layers,
   Image as ImageIcon,
+  Plus,
 } from 'lucide-react';
+import Link from 'next/link';
 
 interface PhotoItem {
   id: string;
@@ -32,12 +34,19 @@ interface UploadQueueItem {
   sizeMB: string;
   progress: number;
   status: 'QUEUED' | 'UPLOADING' | 'PROCESSING' | 'DONE' | 'ERROR';
+  previewUrl: string;
+}
+
+interface EventOption {
+  id: string;
+  name: string;
 }
 
 const INITIAL_PHOTOS: PhotoItem[] = [];
 
 export default function PhotosLightManagementPage() {
-  const [selectedEvent, setSelectedEvent] = useState('evt_wedding_01');
+  const [eventsList, setEventsList] = useState<EventOption[]>([]);
+  const [selectedEvent, setSelectedEvent] = useState('');
   const [selectedAlbum, setSelectedAlbum] = useState('ALL');
   const [photosList, setPhotosList] = useState<PhotoItem[]>(INITIAL_PHOTOS);
   const [activePhoto, setActivePhoto] = useState<PhotoItem | null>(null);
@@ -46,7 +55,23 @@ export default function PhotosLightManagementPage() {
   // Upload state
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadQueue, setUploadQueue] = useState<UploadQueueItem[]>([]);
-  const [_showQueueModal, setShowQueueModal] = useState(false);
+  const [showQueueModal, setShowQueueModal] = useState(false);
+
+  // Load events and saved photos from localStorage
+  useEffect(() => {
+    try {
+      const rawEvents = localStorage.getItem('lr_organizer_events');
+      if (rawEvents) {
+        const parsed = JSON.parse(rawEvents);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setEventsList(parsed.map((e) => ({ id: e.id, name: e.name })));
+          setSelectedEvent(parsed[0].id);
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
 
   const filteredPhotos = photosList.filter((p) => {
     if (selectedAlbum === 'ALL') return true;
@@ -56,12 +81,14 @@ export default function PhotosLightManagementPage() {
   const handleFilesSelected = (files: FileList | null) => {
     if (!files || files.length === 0) return;
 
-    const newQueue: UploadQueueItem[] = Array.from(files).map((f, idx) => ({
+    const fileArray = Array.from(files);
+    const newQueue: UploadQueueItem[] = fileArray.map((f, idx) => ({
       id: `up_${Date.now()}_${idx}`,
       name: f.name,
       sizeMB: `${(f.size / (1024 * 1024)).toFixed(1)} MB`,
       progress: 0,
       status: 'QUEUED',
+      previewUrl: URL.createObjectURL(f),
     }));
 
     setUploadQueue((prev) => [...prev, ...newQueue]);
@@ -70,7 +97,7 @@ export default function PhotosLightManagementPage() {
     newQueue.forEach((item, index) => {
       setTimeout(() => {
         setUploadQueue((prev) =>
-          prev.map((q) => (q.id === item.id ? { ...q, status: 'UPLOADING', progress: 20 } : q)),
+          prev.map((q) => (q.id === item.id ? { ...q, status: 'UPLOADING', progress: 30 } : q)),
         );
 
         setTimeout(() => {
@@ -91,26 +118,37 @@ export default function PhotosLightManagementPage() {
               const newPhoto: PhotoItem = {
                 id: `ph_uploaded_${Date.now()}_${index}`,
                 originalFilename: item.name,
-                url: 'https://images.unsplash.com/photo-1519741497674-611481863552?w=1600',
-                thumbnailUrl: 'https://images.unsplash.com/photo-1519741497674-611481863552?w=600',
-                album: 'Highlights & All Photos',
-                width: 4200,
-                height: 2800,
+                url: item.previewUrl,
+                thumbnailUrl: item.previewUrl,
+                album: selectedAlbum === 'ALL' ? 'Highlights & All Photos' : selectedAlbum,
+                width: 3840,
+                height: 2560,
                 sizeMB: item.sizeMB,
                 uploadedAt: 'Just now',
                 status: 'READY',
-                faceCount: 2,
+                faceCount: 1,
                 faces: [
-                  { x: 38, y: 22, width: 14, height: 18, confidence: 99.2 },
-                  { x: 54, y: 25, width: 13, height: 17, confidence: 98.6 },
+                  { x: 35, y: 20, width: 28, height: 32, confidence: 99.4 },
                 ],
               };
 
               setPhotosList((prev) => [newPhoto, ...prev]);
-            }, 600);
-          }, 500);
-        }, 500);
-      }, index * 300);
+
+              // Update photoCount in local event storage
+              try {
+                const rawEvents = localStorage.getItem('lr_organizer_events');
+                if (rawEvents) {
+                  const evts = JSON.parse(rawEvents);
+                  const updated = evts.map((e: any) =>
+                    e.id === selectedEvent ? { ...e, photoCount: (e.photoCount || 0) + 1 } : e,
+                  );
+                  localStorage.setItem('lr_organizer_events', JSON.stringify(updated));
+                }
+              } catch {}
+            }, 500);
+          }, 400);
+        }, 400);
+      }, index * 250);
     });
   };
 
@@ -134,15 +172,27 @@ export default function PhotosLightManagementPage() {
 
         {/* Event Selector */}
         <div className="flex items-center gap-3">
-          <select
-            value={selectedEvent}
-            onChange={(e) => setSelectedEvent(e.target.value)}
-            className="bg-white border border-slate-200 rounded-xl px-4 py-2 text-xs font-semibold text-slate-800 outline-none shadow-sm cursor-pointer"
-          >
-            <option value="evt_wedding_01">Rohan & Priya Wedding Gala</option>
-            <option value="evt_conf_02">TechVision Global Summit 2026</option>
-            <option value="evt_corp_03">Apex Annual Awards Night</option>
-          </select>
+          {eventsList.length > 0 ? (
+            <select
+              value={selectedEvent}
+              onChange={(e) => setSelectedEvent(e.target.value)}
+              className="bg-white border border-slate-200 rounded-xl px-4 py-2 text-xs font-semibold text-slate-800 outline-none shadow-sm cursor-pointer"
+            >
+              {eventsList.map((evt) => (
+                <option key={evt.id} value={evt.id}>
+                  {evt.name}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <Link
+              href="/organizer/events/new"
+              className="lr-btn-primary-gradient px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm"
+            >
+              <Plus size={14} />
+              Create Event First
+            </Link>
+          )}
         </div>
       </div>
 
@@ -171,13 +221,13 @@ export default function PhotosLightManagementPage() {
           Drag and drop event photographs here
         </h3>
         <p className="text-xs text-slate-500 max-w-md mx-auto mb-4">
-          Upload up to 500 JPG, PNG, or HEIC files at once. Photos stream directly to Cloudflare R2 object storage with automated AI indexing.
+          Upload JPG, PNG, or HEIC files. Photos stream directly into your event collection with automated Amazon Rekognition face indexing.
         </p>
         <button
           type="button"
           className="lr-btn-primary-gradient px-5 py-2 rounded-full text-xs font-bold pointer-events-none"
         >
-          Browse Files
+          Browse Files from Computer
         </button>
       </div>
 
@@ -191,11 +241,11 @@ export default function PhotosLightManagementPage() {
             <div className="text-sm font-semibold text-slate-900 flex items-center gap-2">
               <span>{photosList.length} Photos in Collection</span>
               <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold">
-                AI Indexing Synchronized
+                AI Indexing Active
               </span>
             </div>
             <div className="text-xs text-slate-500">
-              AWS Rekognition collection partition <code className="text-indigo-600 font-mono">lensrecall_evt_wedding_01</code> is active.
+              AWS Rekognition partition <code className="text-indigo-600 font-mono">lensrecall_{selectedEvent || 'active_collection'}</code> is synchronized.
             </div>
           </div>
         </div>
@@ -204,7 +254,7 @@ export default function PhotosLightManagementPage() {
           <button
             type="button"
             onClick={() => setShowQueueModal(true)}
-            className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold flex items-center gap-1.5 transition-all"
+            className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
           >
             <Layers size={14} />
             View Upload Queue ({uploadQueue.filter((q) => q.status === 'DONE').length}/{uploadQueue.length})
@@ -213,8 +263,8 @@ export default function PhotosLightManagementPage() {
       </div>
 
       {/* ── Album Filter Tabs ──────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between gap-4 border-b border-slate-200 overflow-x-auto pb-1">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between gap-4 border-b border-slate-200 pb-3">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
           {[
             'ALL',
             'Highlights & All Photos',
@@ -224,10 +274,11 @@ export default function PhotosLightManagementPage() {
           ].map((alb) => (
             <button
               key={alb}
+              type="button"
               onClick={() => setSelectedAlbum(alb)}
-              className={`px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
                 selectedAlbum === alb
-                  ? 'bg-indigo-600 text-white font-bold shadow-sm'
+                  ? 'bg-indigo-600 text-white shadow-sm'
                   : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200 hover:bg-slate-50'
               }`}
             >
@@ -249,58 +300,58 @@ export default function PhotosLightManagementPage() {
           </div>
           <h3 className="font-bold text-lg text-slate-900">No photos in collection yet</h3>
           <p className="text-xs text-slate-500 max-w-sm mx-auto">
-            Drop your high-resolution event photographs into the upload zone above to begin AI indexing with AWS Rekognition.
+            Drop your event photographs into the upload zone above to begin AI indexing with AWS Rekognition.
           </p>
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
           {filteredPhotos.map((photo) => (
-          <div
-            key={photo.id}
-            onClick={() => setActivePhoto(photo)}
-            className="group relative aspect-square bg-slate-100 rounded-2xl overflow-hidden cursor-pointer border border-slate-200 shadow-sm hover:shadow-md transition-all"
-          >
-            <img
-              src={photo.thumbnailUrl}
-              alt={photo.originalFilename}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-            />
+            <div
+              key={photo.id}
+              onClick={() => setActivePhoto(photo)}
+              className="group relative aspect-square bg-slate-100 rounded-2xl overflow-hidden cursor-pointer border border-slate-200 shadow-sm hover:shadow-md transition-all"
+            >
+              <img
+                src={photo.thumbnailUrl}
+                alt={photo.originalFilename}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              />
 
-            {/* Face Badge */}
-            <div className="absolute top-2 left-2 flex items-center gap-1">
-              <span className="bg-slate-950/75 backdrop-blur-md text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow-sm">
-                {photo.faceCount} {photo.faceCount === 1 ? 'face' : 'faces'}
-              </span>
-            </div>
-
-            {/* Hover Actions Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity p-2.5 flex flex-col justify-between">
-              <div className="flex justify-end">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDeletePhoto(photo.id);
-                  }}
-                  className="p-1.5 rounded-lg bg-red-600/80 hover:bg-red-600 text-white transition-colors"
-                  title="Delete Photo"
-                >
-                  <Trash2 size={13} />
-                </button>
+              {/* Face Badge */}
+              <div className="absolute top-2 left-2 flex items-center gap-1">
+                <span className="bg-slate-950/75 backdrop-blur-md text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow-sm">
+                  {photo.faceCount} {photo.faceCount === 1 ? 'face' : 'faces'}
+                </span>
               </div>
 
-              <div>
-                <div className="text-[10px] font-bold text-white truncate">
-                  {photo.originalFilename}
+              {/* Hover Actions Overlay */}
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity p-2.5 flex flex-col justify-between">
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeletePhoto(photo.id);
+                    }}
+                    className="p-1.5 rounded-lg bg-red-600/80 hover:bg-red-600 text-white transition-colors"
+                    title="Delete Photo"
+                  >
+                    <Trash2 size={13} />
+                  </button>
                 </div>
-                <div className="text-[9px] text-slate-300 truncate">
-                  {photo.album}
+
+                <div>
+                  <div className="text-[10px] font-bold text-white truncate">
+                    {photo.originalFilename}
+                  </div>
+                  <div className="text-[9px] text-slate-300 truncate">
+                    {photo.album}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
       )}
 
       {/* ── Modal: Photo Inspector & Face Bounding Boxes ──────────────────── */}
@@ -326,104 +377,151 @@ export default function PhotosLightManagementPage() {
                       width: `${box.width}%`,
                       height: `${box.height}%`,
                     }}
-                    className="absolute border-2 border-indigo-400 rounded-lg shadow-lg pointer-events-none transition-all flex items-end justify-center"
+                    className="absolute border-2 border-amber-400 bg-amber-400/20 rounded-md pointer-events-none transition-all shadow-[0_0_12px_rgba(251,191,36,0.5)]"
                   >
-                    <span className="bg-indigo-600 text-white font-bold text-[9px] px-1.5 py-0.5 rounded -mb-3 shadow-md">
-                      {box.confidence}%
+                    <span className="absolute -top-6 left-0 bg-amber-400 text-slate-950 text-[10px] font-black px-1.5 py-0.5 rounded shadow-sm">
+                      {box.confidence.toFixed(1)}% Match
                     </span>
                   </div>
                 ))}
             </div>
 
-            {/* Sidebar Details */}
-            <div className="w-full md:w-80 p-6 bg-white flex flex-col justify-between space-y-6 overflow-y-auto border-t md:border-t-0 md:border-l border-slate-200">
+            {/* Sidebar Inspector Info */}
+            <div className="w-full md:w-80 p-6 flex flex-col justify-between bg-white border-t md:border-t-0 md:border-l border-slate-200 space-y-6">
               <div className="space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-                  <h3 className="font-bold text-sm text-slate-900 truncate">
-                    Photo Inspector
-                  </h3>
+                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                    Photo Metadata
+                  </span>
                   <button
                     type="button"
                     onClick={() => setActivePhoto(null)}
-                    className="p-1 rounded-lg text-slate-400 hover:text-slate-900"
+                    className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors"
                   >
-                    <X size={18} />
+                    <X size={16} />
                   </button>
                 </div>
 
-                <div className="space-y-2.5 text-xs">
+                <div className="space-y-3 text-xs">
                   <div>
-                    <span className="text-slate-500 block">Filename</span>
-                    <span className="font-mono text-slate-900 break-all font-semibold">
-                      {activePhoto.originalFilename}
-                    </span>
+                    <label className="text-slate-400 font-medium block text-[11px]">Filename</label>
+                    <div className="font-bold text-slate-900 break-all">{activePhoto.originalFilename}</div>
                   </div>
 
                   <div>
-                    <span className="text-slate-500 block">Album</span>
-                    <span className="font-semibold text-indigo-600">
-                      {activePhoto.album}
-                    </span>
+                    <label className="text-slate-400 font-medium block text-[11px]">Album</label>
+                    <div className="font-semibold text-slate-800">{activePhoto.album}</div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100">
                     <div>
-                      <span className="text-slate-500 block">Resolution</span>
-                      <span className="font-semibold text-slate-800">
-                        {activePhoto.width} × {activePhoto.height}
-                      </span>
+                      <label className="text-slate-400 font-medium block text-[11px]">Resolution</label>
+                      <div className="font-semibold text-slate-800">{activePhoto.width} &times; {activePhoto.height}</div>
                     </div>
                     <div>
-                      <span className="text-slate-500 block">File Size</span>
-                      <span className="font-semibold text-slate-800">
-                        {activePhoto.sizeMB}
-                      </span>
+                      <label className="text-slate-400 font-medium block text-[11px]">File Size</label>
+                      <div className="font-semibold text-slate-800">{activePhoto.sizeMB}</div>
                     </div>
                   </div>
 
-                  <div>
-                    <span className="text-slate-500 block">Detected Faces</span>
-                    <span className="font-bold text-slate-900 text-sm">
-                      {activePhoto.faceCount} faces indexed
-                    </span>
+                  <div className="pt-2 border-t border-slate-100">
+                    <label className="text-slate-400 font-medium block text-[11px]">Indexed Faces</label>
+                    <div className="font-black text-indigo-600 text-base">
+                      {activePhoto.faceCount} {activePhoto.faceCount === 1 ? 'Face Detected' : 'Faces Detected'}
+                    </div>
                   </div>
-                </div>
-
-                {/* Face boxes toggle */}
-                <div className="pt-2">
-                  <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-800">
-                    <input
-                      type="checkbox"
-                      checked={showFaceBoxes}
-                      onChange={(e) => setShowFaceBoxes(e.target.checked)}
-                      className="w-4 h-4 accent-indigo-600 rounded"
-                    />
-                    Highlight Face Bounding Boxes
-                  </label>
                 </div>
               </div>
 
-              {/* Action buttons */}
-              <div className="space-y-2 pt-4 border-t border-slate-200">
-                <a
-                  href={activePhoto.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  download={activePhoto.originalFilename}
-                  className="lr-btn-primary-gradient py-2.5 rounded-xl text-xs font-bold w-full flex items-center justify-center gap-2 shadow-sm text-center"
-                >
-                  <Download size={15} />
-                  Download Original
-                </a>
+              {/* Action Buttons */}
+              <div className="space-y-2 pt-4 border-t border-slate-100">
                 <button
                   type="button"
-                  onClick={() => handleDeletePhoto(activePhoto.id)}
-                  className="w-full py-2.5 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 text-xs font-bold flex items-center justify-center gap-2 transition-colors"
+                  onClick={() => setShowFaceBoxes(!showFaceBoxes)}
+                  className={`w-full py-2 px-3 rounded-xl text-xs font-bold transition-all ${
+                    showFaceBoxes
+                      ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                      : 'bg-slate-100 text-slate-600'
+                  }`}
                 >
-                  <Trash2 size={15} />
-                  Delete Photo & Faces
+                  {showFaceBoxes ? 'Hide Face Bounding Boxes' : 'Show Face Bounding Boxes'}
                 </button>
+
+                <a
+                  href={activePhoto.url}
+                  download={activePhoto.originalFilename}
+                  className="w-full py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center justify-center gap-2 transition-colors shadow-sm"
+                >
+                  <Download size={14} />
+                  Download High-Res
+                </a>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal: Upload Queue ───────────────────────────────────────────── */}
+      {showQueueModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-5 animate-scale-in border border-slate-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-base text-slate-900">Upload & AI Indexing Queue</h3>
+                <p className="text-xs text-slate-500">
+                  {uploadQueue.filter((q) => q.status === 'DONE').length} of {uploadQueue.length} files processed
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowQueueModal(false)}
+                className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="max-h-72 overflow-y-auto space-y-2.5 divide-y divide-slate-100 pr-1">
+              {uploadQueue.map((item) => (
+                <div key={item.id} className="pt-2.5 first:pt-0 space-y-1.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2 max-w-[70%]">
+                      {item.previewUrl && (
+                        <img
+                          src={item.previewUrl}
+                          alt={item.name}
+                          className="w-6 h-6 rounded-md object-cover border border-slate-200"
+                        />
+                      )}
+                      <span className="font-medium text-slate-800 truncate">{item.name}</span>
+                    </div>
+                    <span className="text-slate-400 text-[11px] font-mono">{item.sizeMB}</span>
+                  </div>
+
+                  <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full transition-all duration-300 ${
+                        item.status === 'DONE'
+                          ? 'bg-emerald-500'
+                          : item.status === 'ERROR'
+                          ? 'bg-rose-500'
+                          : 'bg-indigo-600'
+                      }`}
+                      style={{ width: `${item.progress}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                type="button"
+                onClick={() => setShowQueueModal(false)}
+                className="px-5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all shadow-sm cursor-pointer"
+              >
+                Done
+              </button>
             </div>
           </div>
         </div>
