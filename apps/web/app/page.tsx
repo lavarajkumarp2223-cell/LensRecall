@@ -155,6 +155,9 @@ export default function NextGenLightHomepage() {
             <Link href="/pricing" className="hover:text-indigo-600 transition-colors">
               Pricing Plans
             </Link>
+            <Link href="/contact" className="text-indigo-600 font-bold hover:text-indigo-700 transition-colors">
+              Contact Us
+            </Link>
           </div>
 
           <div className="flex items-center gap-3">
@@ -546,27 +549,53 @@ export default function NextGenLightHomepage() {
 
       {/* ── Footer ────────────────────────────────────────────────────────── */}
       <footer className="border-t border-slate-200 py-12 bg-white text-xs text-slate-500">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-2.5">
-            <div className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs">
-              L
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-6">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-sm">
+                LR
+              </div>
+              <div>
+                <span className="font-extrabold text-slate-900 block text-sm">LensRecall</span>
+                <span className="text-[11px] text-slate-400">
+                  AI-Powered Event Photography &amp; Biometric Recall
+                </span>
+              </div>
             </div>
-            <span className="font-bold text-slate-900">LensRecall</span>
-            <span className="text-slate-400">
-              • AI-Powered Event Photography & Memory Platform
-            </span>
+
+            {/* Direct Contact Channels */}
+            <div className="flex flex-wrap items-center justify-center gap-4 text-xs font-semibold">
+              <a href="tel:+917661907426" className="flex items-center gap-1.5 text-slate-700 hover:text-indigo-600 transition-colors bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
+                📞 <span>+91 7661907426</span>
+              </a>
+              <a href="mailto:lookalivesolutions@gmail.com" className="flex items-center gap-1.5 text-slate-700 hover:text-indigo-600 transition-colors bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
+                ✉️ <span>lookalivesolutions@gmail.com</span>
+              </a>
+              <Link href="/contact" className="lr-btn-primary-gradient px-3.5 py-1.5 rounded-xl text-white font-bold shadow-sm">
+                Contact Us
+              </Link>
+            </div>
           </div>
 
-          <div className="flex items-center gap-6">
-            <Link href="/privacy" className="hover:text-indigo-600 transition-colors">
-              Privacy Policy
-            </Link>
-            <Link href="/pricing" className="hover:text-indigo-600 transition-colors">
-              Pricing Plans
-            </Link>
-            <Link href="/login" className="hover:text-indigo-600 transition-colors">
-              Organizer Sign In
-            </Link>
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-slate-100 text-center sm:text-left">
+            <div className="text-slate-600 font-semibold">
+              Credit to lookalivesolutions2026 &bull; All Rights Reserved
+            </div>
+
+            <div className="flex items-center gap-6">
+              <Link href="/privacy" className="hover:text-indigo-600 transition-colors">
+                Privacy &amp; GDPR
+              </Link>
+              <Link href="/pricing" className="hover:text-indigo-600 transition-colors">
+                Pricing Plans
+              </Link>
+              <Link href="/contact" className="hover:text-indigo-600 transition-colors">
+                Contact Support
+              </Link>
+              <Link href="/login" className="hover:text-indigo-600 transition-colors">
+                Studio Sign In
+              </Link>
+            </div>
           </div>
         </div>
       </footer>

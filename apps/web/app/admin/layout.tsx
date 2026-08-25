@@ -147,8 +147,21 @@ export default function SuperAdminLightLayout({
       </aside>
 
       {/* ── Main Super Admin Content ───────────────────────────────────────── */}
-      <main className="flex-1 p-6 sm:p-10 max-w-7xl mx-auto overflow-y-auto">
-        {children}
+      <main className="flex-1 flex flex-col justify-between overflow-y-auto">
+        <div className="p-6 sm:p-10 max-w-7xl mx-auto w-full">
+          {children}
+        </div>
+
+        <footer className="border-t border-slate-200 py-4 px-6 text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-3 bg-white">
+          <div>
+            LensRecall Root Control Plane &bull; <strong className="text-slate-700 font-semibold">Credit to lookalivesolutions2026</strong>
+          </div>
+          <div className="flex items-center gap-4">
+            <a href="tel:+917661907426" className="hover:text-red-600 font-medium">📞 7661907426</a>
+            <a href="mailto:lookalivesolutions@gmail.com" className="hover:text-red-600 font-medium">✉️ lookalivesolutions@gmail.com</a>
+            <Link href="/contact" className="text-red-600 font-bold hover:underline">Contact Support</Link>
+          </div>
+        </footer>
       </main>
     </div>
   );

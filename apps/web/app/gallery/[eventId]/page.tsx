@@ -391,8 +391,11 @@ function GalleryContent() {
       )}
 
       {/* ── Footer ─────────────────────────────────────────────────────────── */}
-      <footer className="max-w-7xl mx-auto px-4 sm:px-6 py-4 text-center text-xs text-slate-400 border-t border-slate-200">
-        Powered by <strong className="text-slate-600 font-bold">LensRecall AI</strong> &bull; Amazon Rekognition
+      <footer className="max-w-7xl mx-auto px-4 sm:px-6 py-6 text-center text-xs text-slate-500 border-t border-slate-200 space-y-1">
+        <div>Powered by <strong className="text-slate-700 font-bold">LensRecall AI</strong> &bull; Amazon Rekognition</div>
+        <div className="text-[11px] text-slate-400">
+          Credit to <strong className="text-slate-600">lookalivesolutions2026</strong> &bull; <a href="tel:+917661907426" className="hover:text-indigo-600 font-medium">📞 7661907426</a> &bull; <a href="mailto:lookalivesolutions@gmail.com" className="hover:text-indigo-600 font-medium">✉️ lookalivesolutions@gmail.com</a>
+        </div>
       </footer>
     </div>
   );
