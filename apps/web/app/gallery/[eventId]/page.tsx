@@ -75,6 +75,11 @@ function GalleryContent() {
   // Load guest session selfie
   useEffect(() => {
     try {
+      const fromSessionStorage = sessionStorage.getItem('lr_guest_selfie');
+      if (fromSessionStorage) {
+        setGuestSelfie(fromSessionStorage);
+        return;
+      }
       const rawSession = localStorage.getItem('lr_guest_session');
       if (rawSession) {
         const parsed = JSON.parse(rawSession);

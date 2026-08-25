@@ -16,8 +16,36 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { getPhotosForEvent } from '../../../lib/photo-storage';
+import { filterPhotosBySelfie } from '../../../lib/face-matcher';
 
 type CameraStatus = 'idle' | 'requesting' | 'active' | 'denied' | 'error';
+
+function compressSelfie(dataUrl: string): Promise<string> {
+  return new Promise((resolve) => {
+    if (typeof window === 'undefined') return resolve(dataUrl);
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        const maxDim = 320;
+        const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL('image/jpeg', 0.7));
+        } else {
+          resolve(dataUrl);
+        }
+      } catch {
+        resolve(dataUrl);
+      }
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
 
 function SearchContent() {
   const router = useRouter();
@@ -167,22 +195,30 @@ function SearchContent() {
     reader.readAsDataURL(file);
   };
 
-  const triggerAiSearch = async (selfieUrl: string) => {
+  const triggerAiSearch = async (rawSelfieUrl: string) => {
+    const selfieUrl = await compressSelfie(rawSelfieUrl);
+    setCapturedImage(selfieUrl);
     setSearching(true);
     setSearchComplete(false);
 
+    // Save in sessionStorage immediately
+    try {
+      sessionStorage.setItem('lr_guest_selfie', selfieUrl);
+    } catch {}
+
     // Retrieve real photos stored in IndexedDB for this event
     const targetEventId = eventInfo.id || eventId;
-    let storedPhotos = await getPhotosForEvent(targetEventId);
-    // No fallback to getAllPhotosFromStorage — strict event isolation
+    const storedPhotos = await getPhotosForEvent(targetEventId);
+
+    // Run facial matching to get exact match count
+    const matchedList = await filterPhotosBySelfie(selfieUrl, storedPhotos);
+    const matched = matchedList.length;
 
     setTimeout(() => setSearchStep(`Extracting 128-D facial landmarks with Amazon Rekognition...`), 500);
     setTimeout(() => setSearchStep(`Querying collection partition lensrecall_${targetEventId}...`), 1300);
     setTimeout(() => setSearchStep(`Cross-matching facial vectors across ${storedPhotos.length || eventInfo.photoCount} event photographs...`), 2200);
 
     setTimeout(() => {
-      // Show REAL count — 0 if no photos exist for this event
-      const matched = storedPhotos.length;
       setMatchCount(matched);
       setSearchComplete(true);
 

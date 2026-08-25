@@ -14,17 +14,21 @@ export interface FaceMatchScore {
  */
 export async function extractMultiRegionVectors(imageUrl: string): Promise<number[][]> {
   return new Promise((resolve) => {
-    if (typeof window === 'undefined') return resolve([new Array(32).fill(0)]);
+    if (typeof window === 'undefined') return resolve([new Array(20).fill(0)]);
 
     const img = new Image();
-    img.crossOrigin = 'anonymous';
+    // Only set crossOrigin for remote http/https URLs, not for data: or blob: URLs
+    if (imageUrl && !imageUrl.startsWith('data:') && !imageUrl.startsWith('blob:')) {
+      img.crossOrigin = 'anonymous';
+    }
+
     img.onload = () => {
       try {
         const fullCanvas = document.createElement('canvas');
         fullCanvas.width = 64;
         fullCanvas.height = 64;
         const fullCtx = fullCanvas.getContext('2d');
-        if (!fullCtx) return resolve([new Array(32).fill(0)]);
+        if (!fullCtx) return resolve([new Array(20).fill(0)]);
 
         fullCtx.drawImage(img, 0, 0, 64, 64);
         const vectors: number[][] = [];
@@ -48,10 +52,10 @@ export async function extractMultiRegionVectors(imageUrl: string): Promise<numbe
 
         resolve(vectors);
       } catch {
-        resolve([new Array(32).fill(0)]);
+        resolve([new Array(20).fill(0)]);
       }
     };
-    img.onerror = () => resolve([new Array(32).fill(0)]);
+    img.onerror = () => resolve([new Array(20).fill(0)]);
     img.src = imageUrl;
   });
 }
@@ -63,11 +67,12 @@ function computeCanvasDescriptor(
   w: number,
   h: number
 ): number[] {
-  const data = ctx.getImageData(x, y, w, h).data;
+  const imageData = ctx.getImageData(x, y, w, h);
+  const data = imageData.data;
   const vector: number[] = [];
   const totalPixels = w * h;
 
-  // 16-bin color & edge histogram
+  // Color & facial skin-tone histogram
   let rTotal = 0;
   let gTotal = 0;
   let bTotal = 0;
@@ -87,12 +92,12 @@ function computeCanvasDescriptor(
     }
   }
 
-  vector.push(rTotal / totalPixels / 255);
-  vector.push(gTotal / totalPixels / 255);
-  vector.push(bTotal / totalPixels / 255);
-  vector.push(skinTonePixels / totalPixels);
+  vector.push(rTotal / (totalPixels || 1) / 255);
+  vector.push(gTotal / (totalPixels || 1) / 255);
+  vector.push(bTotal / (totalPixels || 1) / 255);
+  vector.push(skinTonePixels / (totalPixels || 1));
 
-  // 4x4 spatial blocks
+  // 4x4 spatial blocks relative to the cropped patch
   const blockW = Math.max(1, Math.floor(w / 4));
   const blockH = Math.max(1, Math.floor(h / 4));
 
@@ -100,9 +105,9 @@ function computeCanvasDescriptor(
     for (let bc = 0; bc < 4; bc++) {
       let bSum = 0;
       let count = 0;
-      for (let py = y + br * blockH; py < y + (br + 1) * blockH; py++) {
-        for (let px = x + bc * blockW; px < x + (bc + 1) * blockW; px++) {
-          const idx = (py * 64 + px) * 4;
+      for (let ly = br * blockH; ly < Math.min(h, (br + 1) * blockH); ly++) {
+        for (let lx = bc * blockW; lx < Math.min(w, (bc + 1) * blockW); lx++) {
+          const idx = (ly * w + lx) * 4;
           const r = data[idx] ?? 0;
           const g = data[idx + 1] ?? 0;
           const b = data[idx + 2] ?? 0;
@@ -148,7 +153,7 @@ export function computeCosineSimilarity(v1: number[], v2: number[]): number {
 export async function filterPhotosBySelfie(
   selfieUrl: string | null,
   photos: Array<{ id: string; url: string; originalFilename?: string; [key: string]: any }>,
-  similarityThreshold = 84
+  similarityThreshold = 75
 ): Promise<Array<any & { matchScore: number; isMatch: boolean }>> {
   if (!selfieUrl || photos.length === 0) {
     // No selfie provided — cannot match any photos. Return empty.
@@ -160,7 +165,19 @@ export async function filterPhotosBySelfie(
 
   const evaluated = await Promise.all(
     photos.map(async (photo) => {
-      const photoVectors = await extractMultiRegionVectors(photo.url || photo.thumbnailUrl);
+      const photoUrl = photo.url || photo.thumbnailUrl;
+
+      // 1. Direct match check (same image uploaded or exact match)
+      if (photoUrl && (photoUrl === selfieUrl || (photoUrl.length > 50 && selfieUrl.length > 50 && photoUrl.slice(0, 80) === selfieUrl.slice(0, 80)))) {
+        return {
+          ...photo,
+          matchScore: 99.8,
+          isMatch: true,
+          simRaw: 100,
+        };
+      }
+
+      const photoVectors = await extractMultiRegionVectors(photoUrl);
 
       // Compare selfie vector against EVERY region/sub-crop of the photo
       let maxSimilarity = 0;
