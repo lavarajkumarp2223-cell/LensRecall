@@ -27,6 +27,8 @@ export default function RegisterPage() {
     setError(null);
 
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 2000);
       const res = await fetch('http://localhost:3001/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -37,7 +39,9 @@ export default function RegisterPage() {
           password,
           role,
         }),
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
 
       const data = await res.json();
       if (!res.ok || !data.success) {

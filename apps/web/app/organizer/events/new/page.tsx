@@ -80,40 +80,11 @@ export default function NewEventPage() {
     e.preventDefault();
     setLoading(true);
 
-    try {
-      const res = await fetch('http://localhost:3001/api/events', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('lr_access_token') || ''}`,
-        },
-        body: JSON.stringify({
-          name,
-          eventDate,
-          location,
-          description,
-          coverPhotoUrl,
-          requireGuestAuth,
-          allowGuestDownloads,
-          watermarkEnabled,
-          faceRetentionDays,
-        }),
-      });
-
-      const data = await res.json();
-      if (res.ok && data.success) {
-        router.push(`/organizer/events/${data.data.id}`);
-        return;
-      }
-    } catch {
-      // Fallback local persistence
-    }
-
     const user = getCurrentUser();
     const newEvent: EventItem = {
       id: `evt_${Date.now()}`,
       name,
-      category: 'Celebration',
+      category,
       date: eventDate || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
       location: location || 'Venue TBA',
       status: 'ACTIVE',
@@ -126,7 +97,7 @@ export default function NewEventPage() {
     };
 
     saveUserEvent(newEvent);
-
+    setLoading(false);
     router.push('/organizer/events');
   };
 

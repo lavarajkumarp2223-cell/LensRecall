@@ -23,11 +23,15 @@ function VerifyContent() {
 
     const verify = async () => {
       try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 2000);
         const res = await fetch('http://localhost:3001/api/auth/magic-link/verify', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ token, email }),
+          signal: controller.signal,
         });
+        clearTimeout(timeout);
 
         const data = await res.json();
         if (!res.ok || !data.success) {
