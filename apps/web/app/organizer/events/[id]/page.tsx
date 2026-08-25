@@ -22,6 +22,11 @@ import {
   X,
 } from 'lucide-react';
 
+import {
+  StoredPhoto,
+  getPhotosForEvent,
+} from '../../../../lib/photo-storage';
+
 interface EventData {
   id: string;
   name: string;
@@ -56,12 +61,13 @@ export default function EventDetailPage() {
   const eventId = (params?.['id'] as string) || '';
 
   const [event, setEvent] = useState<EventData | null>(null);
+  const [storedPhotos, setStoredPhotos] = useState<StoredPhoto[]>([]);
   const [activeTab, setActiveTab] = useState<'overview' | 'albums' | 'photographers' | 'settings'>('overview');
   const [copied, setCopied] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [origin, setOrigin] = useState('http://localhost:3000');
 
-  // Load real event from localStorage
+  // Load real event from localStorage and stored photos
   useEffect(() => {
     if (typeof window !== 'undefined') {
       setOrigin(window.location.origin);
@@ -78,6 +84,12 @@ export default function EventDetailPage() {
       }
     } catch {
       // ignore
+    }
+
+    if (eventId) {
+      getPhotosForEvent(eventId).then((photos) => {
+        setStoredPhotos(photos);
+      });
     }
   }, [eventId]);
 
@@ -310,7 +322,7 @@ export default function EventDetailPage() {
                 </Link>
               </div>
 
-              {displayEvent.photoCount === 0 ? (
+              {storedPhotos.length === 0 ? (
                 <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200 space-y-3">
                   <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto">
                     <ImageIcon size={22} />
@@ -328,8 +340,21 @@ export default function EventDetailPage() {
                   </Link>
                 </div>
               ) : (
-                <div className="p-6 text-center bg-emerald-50/50 rounded-2xl border border-emerald-200 text-emerald-800 text-xs">
-                  <strong>{displayEvent.photoCount} photos active in collection.</strong> Click &ldquo;Manage Photos&rdquo; above to view or add more.
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+                  {storedPhotos.slice(0, 6).map((photo) => (
+                    <div key={photo.id} className="relative aspect-square rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shadow-sm group">
+                      <img
+                        src={photo.thumbnailUrl}
+                        alt={photo.originalFilename}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                      />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center p-1">
+                        <span className="px-1.5 py-0.5 rounded bg-indigo-600 text-white text-[9px] font-bold">
+                          {photo.faceCount} face
+                        </span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
