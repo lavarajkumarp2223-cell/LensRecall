@@ -104,7 +104,25 @@ export async function getPhotosForEvent(eventId: string): Promise<StoredPhoto[]>
 
     // Strict match on eventId ONLY — no fuzzy matching, no cross-event leaks
     const directMatches = all.filter((p) => p.eventId === eventId);
-    return directMatches;
+    if (directMatches.length > 0) {
+      return directMatches;
+    }
+
+    // If local IndexedDB on this device has 0 photos (e.g. guest scanning QR on phone),
+    // query the cloud API for this exact eventId
+    if (typeof window !== 'undefined') {
+      try {
+        const res = await fetch(`/api/photos?eventId=${encodeURIComponent(eventId)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data.photos) && data.photos.length > 0) {
+            return data.photos.filter((p: StoredPhoto) => p.eventId === eventId);
+          }
+        }
+      } catch {}
+    }
+
+    return [];
   } catch {
     return [];
   }

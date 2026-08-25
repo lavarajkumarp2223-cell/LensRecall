@@ -1,26 +1,23 @@
 'use client';
 
-import { useState, useEffect, Suspense, useRef } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   Download,
   Sparkles,
   ArrowLeft,
-  Image as ImageIcon,
   FileArchive,
   Eye,
   Check,
   X,
-  Upload,
   UserCheck,
   Grid,
+  Camera,
 } from 'lucide-react';
 import {
   StoredPhoto,
   getPhotosForEvent,
-  savePhotoToStorage,
-  fileToDataUrl,
 } from '../../../lib/photo-storage';
 import { filterPhotosBySelfie } from '../../../lib/face-matcher';
 
@@ -66,7 +63,6 @@ function GalleryContent() {
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [guestSelfie, setGuestSelfie] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Lightbox modal state
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
@@ -152,49 +148,7 @@ function GalleryContent() {
     loadPhotos();
   }, [eventId, eventInfo.id, token, guestSelfie]);
 
-  const handleMobilePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
 
-    const targetEventId = eventInfo.id || eventId || 'evt_testing';
-    const newPhotos: GalleryPhoto[] = [];
-
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i]!;
-      const dataUrl = await fileToDataUrl(file);
-      const storedItem: StoredPhoto = {
-        id: `ph_mob_${Date.now()}_${i}`,
-        eventId: targetEventId,
-        originalFilename: file.name,
-        url: dataUrl,
-        thumbnailUrl: dataUrl,
-        album: 'Highlights & All Photos',
-        width: 3840,
-        height: 2560,
-        sizeMB: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
-        uploadedAt: 'Just now',
-        status: 'READY',
-        faceCount: 1,
-        faces: [{ x: 35, y: 20, width: 28, height: 32, confidence: 99.4 }],
-      };
-
-      await savePhotoToStorage(storedItem);
-
-      newPhotos.push({
-        id: storedItem.id,
-        url: dataUrl,
-        thumbnailUrl: dataUrl,
-        album: storedItem.album,
-        matchScore: Math.max(92, +(99.8 - i * 0.4).toFixed(1)),
-        filename: file.name,
-        width: 3840,
-        height: 2560,
-      });
-    }
-
-    setAllPhotosList((prev) => [...newPhotos, ...prev]);
-    setMatchedPhotosList((prev) => [...newPhotos, ...prev]);
-  };
 
   const displayPhotos = activeView === 'MATCHED' ? matchedPhotosList : allPhotosList;
 
@@ -248,14 +202,6 @@ function GalleryContent() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col justify-between selection:bg-indigo-500 selection:text-white font-sans">
-      <input
-        type="file"
-        ref={fileInputRef}
-        onChange={handleMobilePhotoUpload}
-        multiple
-        accept="image/*"
-        className="hidden"
-      />
 
       {/* ── Top Header ──────────────────────────────────────────────────────── */}
       <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm">
@@ -371,25 +317,40 @@ function GalleryContent() {
 
         {/* Photos Grid */}
         {displayPhotos.length === 0 ? (
-          <div className="p-12 sm:p-16 text-center bg-white rounded-3xl border border-slate-200 space-y-4 shadow-sm max-w-lg mx-auto">
+          <div className="p-12 sm:p-16 text-center bg-white rounded-3xl border border-slate-200 space-y-5 shadow-sm max-w-lg mx-auto">
             <div className="w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto shadow-sm">
-              <ImageIcon size={26} />
+              <Sparkles size={26} />
             </div>
-            <div>
-              <h3 className="font-bold text-base text-slate-900">No Photos Stored on this Device</h3>
-              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                Photographs for <strong>{eventInfo.name}</strong> were uploaded on your computer browser. You can either test guest face search directly on that computer or upload photographs directly from this phone.
+            <div className="space-y-2">
+              <h3 className="font-bold text-base text-slate-900">
+                {activeView === 'MATCHED' ? 'No Matching Photos Found' : 'No Photos in Event Collection'}
+              </h3>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                {activeView === 'MATCHED'
+                  ? 'We scanned the event photographs but could not detect your face. If the event photographer is still uploading pictures, please check back shortly or take another selfie.'
+                  : 'The organizer has not uploaded photographs to this event collection yet. Please check back soon.'}
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="px-5 py-3 rounded-2xl lr-btn-primary-gradient text-white text-xs font-bold inline-flex items-center gap-2 shadow-md cursor-pointer"
-            >
-              <Upload size={15} />
-              <span>Select Photos from Phone Gallery</span>
-            </button>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+              <Link
+                href={`/gallery/search?token=${token || eventInfo.token}&eventId=${eventInfo.id || eventId}&name=${encodeURIComponent(eventInfo.name)}`}
+                className="px-5 py-2.5 rounded-xl lr-btn-primary-gradient text-white text-xs font-bold inline-flex items-center gap-2 shadow-md cursor-pointer w-full sm:w-auto justify-center"
+              >
+                <Camera size={14} />
+                <span>Take Another Selfie</span>
+              </Link>
+              {activeView === 'MATCHED' && allPhotosList.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setActiveView('ALL')}
+                  className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold inline-flex items-center gap-1.5 transition-colors w-full sm:w-auto justify-center"
+                >
+                  <Grid size={14} />
+                  <span>Browse All Event Photos ({allPhotosList.length})</span>
+                </button>
+              )}
+            </div>
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
