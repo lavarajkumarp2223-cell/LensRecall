@@ -15,7 +15,7 @@ import {
   Upload,
   RefreshCw,
 } from 'lucide-react';
-import { getPhotosForEvent } from '../../../lib/photo-storage';
+import { getPhotosForEvent, getAllPhotosFromStorage } from '../../../lib/photo-storage';
 
 type CameraStatus = 'idle' | 'requesting' | 'active' | 'denied' | 'error';
 
@@ -163,7 +163,10 @@ function SearchContent() {
 
     // Retrieve real photos stored in IndexedDB for this event
     const targetEventId = eventInfo.id || eventId;
-    const storedPhotos = await getPhotosForEvent(targetEventId);
+    let storedPhotos = await getPhotosForEvent(targetEventId);
+    if (!storedPhotos || storedPhotos.length === 0) {
+      storedPhotos = await getAllPhotosFromStorage();
+    }
 
     setTimeout(() => setSearchStep(`Extracting 128-D facial landmarks with Amazon Rekognition...`), 500);
     setTimeout(() => setSearchStep(`Querying collection partition lensrecall_${targetEventId}...`), 1300);

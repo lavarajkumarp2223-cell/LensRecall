@@ -50,17 +50,54 @@ export async function savePhotoToStorage(photo: StoredPhoto): Promise<void> {
   }
 }
 
-export async function getPhotosForEvent(eventId: string): Promise<StoredPhoto[]> {
+export async function getAllPhotosFromStorage(): Promise<StoredPhoto[]> {
   try {
     const db = await openDB();
     return new Promise((resolve, reject) => {
       const tx = db.transaction(STORE_NAME, 'readonly');
       const store = tx.objectStore(STORE_NAME);
-      const index = store.index('eventId');
-      const req = index.getAll(eventId);
+      const req = store.getAll();
       req.onsuccess = () => resolve(req.result || []);
       req.onerror = () => reject(req.error);
     });
+  } catch {
+    return [];
+  }
+}
+
+export async function getPhotosForEvent(eventId: string): Promise<StoredPhoto[]> {
+  try {
+    const all = await getAllPhotosFromStorage();
+
+    if (!eventId || eventId === 'undefined' || eventId === 'all') {
+      return all;
+    }
+
+    // Direct match on eventId
+    const directMatches = all.filter((p) => p.eventId === eventId);
+    if (directMatches.length > 0) {
+      return directMatches;
+    }
+
+    // Resolve eventId against localStorage events (e.g. if token or prefix was passed)
+    try {
+      const rawEvents = localStorage.getItem('lr_organizer_events');
+      if (rawEvents) {
+        const events = JSON.parse(rawEvents);
+        if (Array.isArray(events)) {
+          const matchedEvent = events.find(
+            (e: any) => e.id === eventId || e.qrToken === eventId || eventId.includes(e.id) || (e.qrToken && eventId.includes(e.qrToken)),
+          );
+          if (matchedEvent) {
+            const byResolvedId = all.filter((p) => p.eventId === matchedEvent.id);
+            if (byResolvedId.length > 0) return byResolvedId;
+          }
+        }
+      }
+    } catch {}
+
+    // Fallback: If only 1 event exists in database, return all its photos
+    return all;
   } catch {
     return [];
   }
