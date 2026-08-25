@@ -1,7 +1,9 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import QRCode from 'qrcode';
+import Link from 'next/link';
 import {
   Copy,
   CheckCircle2,
@@ -14,10 +16,8 @@ import {
   QrCode,
   Heart,
   Users,
-  Award,
-  Layers,
   Check,
-  RefreshCw,
+  Plus,
 } from 'lucide-react';
 
 type StandeeTheme = 'wedding_royal' | 'tech_summit' | 'vip_awards' | 'modern_minimal';
@@ -43,69 +43,6 @@ interface EventConfig {
   accentColor: string;
 }
 
-const EVENTS_CONFIG: Record<string, EventConfig> = {
-  evt_wedding_01: {
-    id: 'evt_wedding_01',
-    name: 'Rohan & Priya Wedding Gala',
-    category: 'Wedding Ceremony',
-    venue: 'The Taj West End, Bangalore',
-    date: 'August 24, 2026',
-    token: 'qr_rohan_priya_2026',
-    scans: 1240,
-    defaultTheme: 'wedding_royal',
-    leftPersonName: 'Rohan (Groom)',
-    leftPersonRole: 'Groom',
-    leftPersonPhoto: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&auto=format&fit=crop&q=80',
-    rightPersonName: 'Priya (Bride)',
-    rightPersonRole: 'Bride',
-    rightPersonPhoto: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80',
-    headline: 'Rohan & Priya',
-    actionText: 'Receive Your Magical Wedding Moments',
-    subtext: 'Scan with your smartphone camera to find all your photographs from our special day instantly via AI',
-    accentColor: '#d97706', // Royal Gold
-  },
-  evt_conf_02: {
-    id: 'evt_conf_02',
-    name: 'TechVision Global Summit 2026',
-    category: 'Tech Conference',
-    venue: 'BIEC Exhibition Centre, Bangalore',
-    date: 'August 20, 2026',
-    token: 'qr_techvision_2026',
-    scans: 950,
-    defaultTheme: 'tech_summit',
-    leftPersonName: 'Dr. Elena Vance',
-    leftPersonRole: 'AI Keynote',
-    leftPersonPhoto: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&auto=format&fit=crop&q=80',
-    rightPersonName: 'Alex Chen',
-    rightPersonRole: 'Head of Vision',
-    rightPersonPhoto: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&auto=format&fit=crop&q=80',
-    headline: 'TechVision 2026',
-    actionText: 'Instant AI Keynote & Hall Photo Recall',
-    subtext: 'Scan to unlock your stage, panel, and networking moments in under 3 seconds',
-    accentColor: '#4f46e5', // Cyber Indigo
-  },
-  evt_corp_03: {
-    id: 'evt_corp_03',
-    name: 'Apex Annual Awards Night',
-    category: 'VIP Corporate Gala',
-    venue: 'Grand Ballroom, ITC Gardenia',
-    date: 'August 15, 2026',
-    token: 'qr_apex_awards_2026',
-    scans: 104,
-    defaultTheme: 'vip_awards',
-    leftPersonName: 'Sarah Jenkins',
-    leftPersonRole: 'Managing Director',
-    leftPersonPhoto: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=400&auto=format&fit=crop&q=80',
-    rightPersonName: 'David Mercer',
-    rightPersonRole: 'Chief Host',
-    rightPersonPhoto: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=400&auto=format&fit=crop&q=80',
-    headline: 'Apex Annual Awards',
-    actionText: 'Your Red Carpet & Stage Honors',
-    subtext: 'Scan with your camera to access your official awards ceremony photographs in high resolution',
-    accentColor: '#b45309', // Deep Bronze Gold
-  },
-};
-
 const THEMES_LIST: { id: StandeeTheme; name: string; icon: string; desc: string }[] = [
   { id: 'wedding_royal', name: 'Royal Wedding', icon: '👑', desc: 'Floral arches, golden flourishes & couple portraits' },
   { id: 'tech_summit', name: 'Tech Summit', icon: '🚀', desc: 'Cyber neon gradients, speaker badges & modern grid' },
@@ -113,53 +50,134 @@ const THEMES_LIST: { id: StandeeTheme; name: string; icon: string; desc: string 
   { id: 'modern_minimal', name: 'Modern Minimal', icon: '✨', desc: 'Editorial typography, clean frames & studio aesthetics' },
 ];
 
-export default function QrManagementPage() {
-  const [selectedEventId, setSelectedEventId] = useState<string>('evt_wedding_01');
-  const eventConfig = EVENTS_CONFIG[selectedEventId] ?? EVENTS_CONFIG['evt_wedding_01']!;
+function QrStudioContent() {
+  const searchParams = useSearchParams();
+  const queryEventId = searchParams.get('eventId');
 
-  const [theme, setTheme] = useState<StandeeTheme>(eventConfig.defaultTheme);
-  const [showPortraits, setShowPortraits] = useState(true);
-  const [headline, setHeadline] = useState(eventConfig.headline);
-  const [actionText, setActionText] = useState(eventConfig.actionText);
-  const [subtext, setSubtext] = useState(eventConfig.subtext);
-  const [accentColor, setAccentColor] = useState(eventConfig.accentColor);
-  const [leftName, setLeftName] = useState(eventConfig.leftPersonName);
-  const [leftPhoto, setLeftPhoto] = useState(eventConfig.leftPersonPhoto);
-  const [rightName, setRightName] = useState(eventConfig.rightPersonName);
-  const [rightPhoto, setRightPhoto] = useState(eventConfig.rightPersonPhoto);
-  const [standeeSize, setStandeeSize] = useState<'A4_PORTRAIT' | 'A5_TENT' | 'A3_EASEL'>('A4_PORTRAIT');
+  const [eventsMap, setEventsMap] = useState<Record<string, EventConfig>>({});
+  const [selectedEventId, setSelectedEventId] = useState<string>('');
+  const [loadingEvents, setLoadingEvents] = useState(true);
+
+  // Standee customization state
+  const [theme, setTheme] = useState<StandeeTheme>('wedding_royal');
+  const [showPortraits, setShowPortraits] = useState(false);
+  const [headline, setHeadline] = useState('');
+  const [actionText, setActionText] = useState('Receive Your Event Moments with AI');
+  const [subtext, setSubtext] = useState('Scan with your smartphone camera to find all your photographs from our special day instantly via AI');
+  const [_accentColor, setAccentColor] = useState('#d97706');
+  const [leftName, setLeftName] = useState('Host / Groom');
+  const [leftPhoto] = useState('https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400');
+  const [rightName, setRightName] = useState('Host / Bride');
+  const [rightPhoto] = useState('https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400');
 
   const [copied, setCopied] = useState(false);
-  const [regenerated, setRegenerated] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [origin, setOrigin] = useState('http://localhost:3000');
 
   const standeeRef = useRef<HTMLDivElement>(null);
 
-  // Sync state when selected event changes
-  useEffect(() => {
-    const cfg = EVENTS_CONFIG[selectedEventId] ?? EVENTS_CONFIG['evt_wedding_01']!;
-    setTheme(cfg.defaultTheme);
-    setHeadline(cfg.headline);
-    setActionText(cfg.actionText);
-    setSubtext(cfg.subtext);
-    setAccentColor(cfg.accentColor);
-    setLeftName(cfg.leftPersonName);
-    setLeftPhoto(cfg.leftPersonPhoto);
-    setRightName(cfg.rightPersonName);
-    setRightPhoto(cfg.rightPersonPhoto);
-  }, [selectedEventId]);
-
+  // Load events from localStorage and select event
   useEffect(() => {
     if (typeof window !== 'undefined') {
       setOrigin(window.location.origin);
     }
-  }, []);
 
-  const guestUrl = `${origin}/e/${eventConfig.token}`;
+    try {
+      const raw = localStorage.getItem('lr_organizer_events');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const map: Record<string, EventConfig> = {};
+          parsed.forEach((evt: any) => {
+            const token = evt.qrToken || `qr_${evt.name.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+            map[evt.id] = {
+              id: evt.id,
+              name: evt.name,
+              category: evt.category || 'Celebration',
+              venue: evt.location || 'Venue TBA',
+              date: evt.date || new Date().toLocaleDateString(),
+              token,
+              scans: evt.searchCount || 0,
+              defaultTheme: evt.category === 'Corporate' ? 'tech_summit' : 'wedding_royal',
+              leftPersonName: 'Host / Groom',
+              leftPersonRole: 'Host',
+              leftPersonPhoto: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400',
+              rightPersonName: 'Host / Bride',
+              rightPersonRole: 'Host',
+              rightPersonPhoto: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400',
+              headline: evt.name,
+              actionText: 'Receive Your Event Moments with AI',
+              subtext: 'Scan with your smartphone camera to find all your photographs from our event instantly via AI',
+              accentColor: '#d97706',
+            };
+          });
 
-  // Generate genuine high-res scannable QR Code
+          setEventsMap(map);
+
+          // Select matching event or first event
+          const targetId = queryEventId && map[queryEventId] ? queryEventId : parsed[0].id;
+          setSelectedEventId(targetId);
+
+          const active = map[targetId];
+          if (active) {
+            setTheme(active.defaultTheme);
+            setHeadline(active.headline);
+            setActionText(active.actionText);
+            setSubtext(active.subtext);
+            setAccentColor(active.accentColor);
+            setLeftName(active.leftPersonName);
+            setRightName(active.rightPersonName);
+          }
+        }
+      }
+    } catch {
+      // ignore
+    } finally {
+      setLoadingEvents(false);
+    }
+  }, [queryEventId]);
+
+  // Sync state when selectedEventId changes
+  const handleSelectEvent = (id: string) => {
+    setSelectedEventId(id);
+    const active = eventsMap[id];
+    if (active) {
+      setTheme(active.defaultTheme);
+      setHeadline(active.headline);
+      setActionText(active.actionText);
+      setSubtext(active.subtext);
+      setAccentColor(active.accentColor);
+      setLeftName(active.leftPersonName);
+      setRightName(active.rightPersonName);
+    }
+  };
+
+  const currentEvent = eventsMap[selectedEventId] || {
+    id: 'evt_new',
+    name: 'My Live Event',
+    category: 'Celebration',
+    venue: 'Venue TBA',
+    date: new Date().toLocaleDateString(),
+    token: 'qr_live_event_2026',
+    scans: 0,
+    defaultTheme: 'wedding_royal' as StandeeTheme,
+    leftPersonName: 'Host',
+    leftPersonRole: 'Host',
+    leftPersonPhoto: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400',
+    rightPersonName: 'Guest',
+    rightPersonRole: 'VIP',
+    rightPersonPhoto: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400',
+    headline: headline || 'My Live Event',
+    actionText: actionText || 'Find Your Photographs with AI',
+    subtext: subtext || 'Scan with your smartphone camera to find all your photographs from our event instantly via AI',
+    accentColor: '#d97706',
+  };
+
+  const guestUrl = `${origin}/e/${currentEvent.token}`;
+
+  // Generate scannable QR Code
   useEffect(() => {
+    if (!guestUrl) return;
     QRCode.toDataURL(guestUrl, {
       width: 600,
       margin: 1,
@@ -179,13 +197,6 @@ export default function QrManagementPage() {
     setTimeout(() => setCopied(false), 2500);
   };
 
-  const handleRegenerate = () => {
-    if (confirm('Regenerating this QR code will revoke previous printed standees. Continue?')) {
-      setRegenerated(true);
-      setTimeout(() => setRegenerated(false), 3000);
-    }
-  };
-
   const handlePrint = () => {
     window.print();
   };
@@ -194,13 +205,48 @@ export default function QrManagementPage() {
     if (!qrDataUrl) return;
     const a = document.createElement('a');
     a.href = qrDataUrl;
-    a.download = `${eventConfig.token}_scannable_qr.png`;
+    a.download = `${currentEvent.token}_scannable_qr.png`;
     a.click();
   };
 
+  const eventsList = Object.values(eventsMap);
+
+  if (!loadingEvents && eventsList.length === 0) {
+    return (
+      <div className="space-y-8 max-w-4xl mx-auto pb-16">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight flex items-center gap-2.5">
+            <QrCode size={28} className="text-indigo-600" />
+            Standee Designer & QR Studio
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 mt-1">
+            Design decorated, event-themed physical QR standees for weddings, conferences, and celebrations
+          </p>
+        </div>
+
+        <div className="bg-white rounded-3xl border border-slate-200 p-12 text-center space-y-4 shadow-sm">
+          <div className="w-16 h-16 rounded-3xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto shadow-sm">
+            <QrCode size={28} />
+          </div>
+          <h3 className="font-bold text-lg text-slate-900">No events found</h3>
+          <p className="text-xs text-slate-500 max-w-sm mx-auto">
+            Create your first event collection to generate customized, print-ready physical standee QR codes.
+          </p>
+          <Link
+            href="/organizer/events/new"
+            className="inline-flex items-center gap-2 lr-btn-primary-gradient px-6 py-3 rounded-2xl text-xs font-bold shadow-md"
+          >
+            <Plus size={15} />
+            Create Your First Event
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8 max-w-7xl pb-16">
-      {/* ── Print Stylesheet (Injected so Print only prints the Standee Card) ── */}
+      {/* Print Stylesheet */}
       <style jsx global>{`
         @media print {
           body * {
@@ -232,7 +278,7 @@ export default function QrManagementPage() {
             Standee Designer & QR Studio
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Design decorated, event-themed physical QR standees for weddings, conferences, and gala evenings
+            Design decorated, event-themed physical QR standees for weddings, conferences, and celebrations
           </p>
         </div>
 
@@ -241,12 +287,14 @@ export default function QrManagementPage() {
           <label className="text-xs font-bold text-slate-600 hidden sm:inline">Event:</label>
           <select
             value={selectedEventId}
-            onChange={(e) => setSelectedEventId(e.target.value)}
+            onChange={(e) => handleSelectEvent(e.target.value)}
             className="bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none transition-all sm:w-64 cursor-pointer"
           >
-            <option value="evt_wedding_01">💍 Rohan & Priya Wedding Gala</option>
-            <option value="evt_conf_02">🚀 TechVision Global Summit 2026</option>
-            <option value="evt_corp_03">🏆 Apex Annual Awards Night</option>
+            {eventsList.map((evt) => (
+              <option key={evt.id} value={evt.id}>
+                {evt.name}
+              </option>
+            ))}
           </select>
         </div>
       </div>
@@ -258,539 +306,341 @@ export default function QrManagementPage() {
           <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div className="p-3 bg-slate-50 rounded-xl">
-                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Scans Recorded</div>
-                <div className="text-xl font-black text-indigo-600">{eventConfig.scans.toLocaleString()}</div>
-                <div className="text-[10px] text-emerald-600 font-semibold flex items-center gap-1 mt-0.5">
-                  <CheckCircle2 size={11} /> 98.2% valid
-                </div>
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                  Scans Recorded
+                </span>
+                <span className="text-xl font-black text-slate-900 mt-0.5 block">
+                  {currentEvent.scans.toLocaleString()}
+                </span>
+                <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-1 mt-1">
+                  <CheckCircle2 size={11} />
+                  Live active
+                </span>
               </div>
+
               <div className="p-3 bg-slate-50 rounded-xl">
-                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Token Status</div>
-                <div className="text-sm font-bold text-slate-900 flex items-center gap-1.5 mt-1">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse" /> Active
-                </div>
-                <div className="text-[10px] font-mono text-slate-400 truncate mt-0.5">{eventConfig.token}</div>
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                  Token Status
+                </span>
+                <span className="text-xs font-mono font-bold text-indigo-600 mt-1 block truncate">
+                  {currentEvent.token}
+                </span>
+                <span className="text-[10px] text-slate-500 font-medium block mt-1">
+                  AWS Rekognition bound
+                </span>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 pt-1">
+            <div className="flex gap-2">
               <a
                 href={guestUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="flex-1 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 px-3 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
+                className="flex-1 py-2 px-3 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors"
               >
-                <ExternalLink size={13} /> Test Guest Link
+                <ExternalLink size={13} />
+                Test Guest Link
               </a>
+
               <button
                 type="button"
                 onClick={handleCopy}
-                className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 px-3 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-colors shadow-sm"
+                className="py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
               >
-                <Copy size={13} /> {copied ? 'Copied!' : 'Copy Link'}
+                {copied ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} />}
+                {copied ? 'Copied' : 'Copy Link'}
               </button>
             </div>
           </div>
 
-          {/* 1. Theme & Style Selector */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3">
+          {/* Theme Selector */}
+          <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-sm space-y-4">
             <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
-              <Layers size={16} className="text-indigo-600" />
+              <Palette size={16} className="text-indigo-600" />
               Event Style Template
             </h3>
 
-            <div className="grid grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-2 gap-3">
               {THEMES_LIST.map((t) => (
                 <button
                   key={t.id}
                   type="button"
                   onClick={() => setTheme(t.id)}
-                  className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                  className={`p-3.5 rounded-2xl border text-left transition-all relative cursor-pointer ${
                     theme === t.id
-                      ? 'border-indigo-600 bg-indigo-50/70 shadow-sm ring-1 ring-indigo-600'
-                      : 'border-slate-200 hover:border-slate-300 bg-white'
+                      ? 'border-indigo-600 bg-indigo-50/50 shadow-sm ring-2 ring-indigo-600/20'
+                      : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
                   }`}
                 >
-                  <div className="flex items-center justify-between">
-                    <span className="text-lg">{t.icon}</span>
-                    {theme === t.id && <Check size={14} className="text-indigo-600" />}
-                  </div>
-                  <div className="font-bold text-xs text-slate-900 mt-1">{t.name}</div>
-                  <div className="text-[10px] text-slate-500 line-clamp-1 mt-0.5">{t.desc}</div>
+                  <div className="text-xl mb-1">{t.icon}</div>
+                  <div className="text-xs font-bold text-slate-900">{t.name}</div>
+                  <div className="text-[10px] text-slate-500 mt-0.5 line-clamp-1">{t.desc}</div>
+                  {theme === t.id && (
+                    <div className="absolute top-2.5 right-2.5 w-4 h-4 rounded-full bg-indigo-600 text-white flex items-center justify-center">
+                      <Check size={10} />
+                    </div>
+                  )}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* 2. Side-by-Side Portraits Customizer */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+          {/* Featured Portraits Toggle */}
+          <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-sm space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
                 <Users size={16} className="text-indigo-600" />
                 Featured Portraits (Left & Right)
               </h3>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={showPortraits}
-                  onChange={(e) => setShowPortraits(e.target.checked)}
-                  className="sr-only peer"
+              <button
+                type="button"
+                onClick={() => setShowPortraits(!showPortraits)}
+                className={`w-10 h-6 rounded-full transition-colors relative cursor-pointer ${
+                  showPortraits ? 'bg-indigo-600' : 'bg-slate-200'
+                }`}
+              >
+                <div
+                  className={`w-4 h-4 rounded-full bg-white absolute top-1 transition-transform ${
+                    showPortraits ? 'left-5' : 'left-1'
+                  }`}
                 />
-                <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600" />
-              </label>
+              </button>
             </div>
 
             {showPortraits && (
-              <div className="space-y-4 pt-1 animate-fade-in">
-                {/* Left Person (Groom / Speaker 1) */}
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
-                  <div className="flex items-center gap-2.5">
-                    <img src={leftPhoto} alt={leftName} className="w-10 h-10 rounded-full object-cover border-2 border-indigo-200 shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                        Left Portrait ({theme === 'wedding_royal' ? 'Groom' : 'Host / Speaker 1'})
-                      </label>
-                      <input
-                        type="text"
-                        value={leftName}
-                        onChange={(e) => setLeftName(e.target.value)}
-                        className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs font-semibold text-slate-800 outline-none focus:border-indigo-500"
-                        placeholder="Name"
-                      />
-                    </div>
-                  </div>
+              <div className="space-y-3 pt-2 border-t border-slate-100">
+                <div>
+                  <label className="text-[11px] font-bold text-slate-600 block mb-1">Left Portrait Name</label>
                   <input
                     type="text"
-                    value={leftPhoto}
-                    onChange={(e) => setLeftPhoto(e.target.value)}
-                    className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1 text-[10px] text-slate-500 font-mono outline-none focus:border-indigo-500"
-                    placeholder="Image URL"
+                    value={leftName}
+                    onChange={(e) => setLeftName(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none focus:bg-white focus:border-indigo-500"
                   />
                 </div>
 
-                {/* Right Person (Bride / Speaker 2) */}
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
-                  <div className="flex items-center gap-2.5">
-                    <img src={rightPhoto} alt={rightName} className="w-10 h-10 rounded-full object-cover border-2 border-indigo-200 shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                        Right Portrait ({theme === 'wedding_royal' ? 'Bride' : 'Keynote / Speaker 2'})
-                      </label>
-                      <input
-                        type="text"
-                        value={rightName}
-                        onChange={(e) => setRightName(e.target.value)}
-                        className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs font-semibold text-slate-800 outline-none focus:border-indigo-500"
-                        placeholder="Name"
-                      />
-                    </div>
-                  </div>
+                <div>
+                  <label className="text-[11px] font-bold text-slate-600 block mb-1">Right Portrait Name</label>
                   <input
                     type="text"
-                    value={rightPhoto}
-                    onChange={(e) => setRightPhoto(e.target.value)}
-                    className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1 text-[10px] text-slate-500 font-mono outline-none focus:border-indigo-500"
-                    placeholder="Image URL"
+                    value={rightName}
+                    onChange={(e) => setRightName(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none focus:bg-white focus:border-indigo-500"
                   />
                 </div>
               </div>
             )}
           </div>
 
-          {/* 3. Text & Call-To-Action Copy */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3.5">
+          {/* Typography & Copy */}
+          <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-sm space-y-4">
             <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
               <FileText size={16} className="text-indigo-600" />
-              Headline & Action Copy
+              Standee Text & Copy
             </h3>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Big Main Title</label>
-              <input
-                type="text"
-                value={headline}
-                onChange={(e) => setHeadline(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-900 focus:bg-white focus:border-indigo-500 outline-none"
-              />
-            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="text-[11px] font-bold text-slate-600 block mb-1">Headline</label>
+                <input
+                  type="text"
+                  value={headline || currentEvent.name}
+                  onChange={(e) => setHeadline(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none focus:bg-white focus:border-indigo-500"
+                />
+              </div>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Action Banner Banner Text</label>
-              <input
-                type="text"
-                value={actionText}
-                onChange={(e) => setActionText(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-900 focus:bg-white focus:border-indigo-500 outline-none"
-              />
-            </div>
+              <div>
+                <label className="text-[11px] font-bold text-slate-600 block mb-1">Action Banner Text</label>
+                <input
+                  type="text"
+                  value={actionText}
+                  onChange={(e) => setActionText(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none focus:bg-white focus:border-indigo-500"
+                />
+              </div>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Instructions Subtext</label>
-              <textarea
-                rows={2}
-                value={subtext}
-                onChange={(e) => setSubtext(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 focus:bg-white focus:border-indigo-500 outline-none resize-none"
-              />
+              <div>
+                <label className="text-[11px] font-bold text-slate-600 block mb-1">Instruction Subtitle</label>
+                <textarea
+                  rows={2}
+                  value={subtext}
+                  onChange={(e) => setSubtext(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-medium text-slate-800 outline-none focus:bg-white focus:border-indigo-500"
+                />
+              </div>
             </div>
           </div>
 
-          {/* 4. Accent Color */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3">
-            <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
-              <Palette size={16} className="text-indigo-600" />
-              Theme Accent Color
-            </h3>
-
-            <div className="flex items-center gap-3">
-              {[
-                { name: 'Royal Gold', hex: '#d97706' },
-                { name: 'Velvet Rose', hex: '#e11d48' },
-                { name: 'Cyber Indigo', hex: '#4f46e5' },
-                { name: 'Emerald Green', hex: '#059669' },
-                { name: 'Classic Black', hex: '#0a0a0b' },
-              ].map(({ name, hex }) => (
-                <button
-                  key={hex}
-                  type="button"
-                  onClick={() => setAccentColor(hex)}
-                  className={`w-8 h-8 rounded-full border-2 transition-all flex items-center justify-center cursor-pointer shadow-sm ${
-                    accentColor === hex ? 'border-slate-900 scale-110 ring-2 ring-indigo-200' : 'border-transparent opacity-80 hover:opacity-100'
-                  }`}
-                  style={{ backgroundColor: hex }}
-                  title={name}
-                >
-                  {accentColor === hex && <Check size={14} className="text-white drop-shadow" />}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* 5. Export Actions & Standee Dimensions */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
-            <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
-              <Printer size={16} className="text-indigo-600" />
-              Print & Export Standee
-            </h3>
-
-            {/* Print Dimensions */}
-            <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">
-                Print Format / Size
-              </label>
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { id: 'A4_PORTRAIT', label: 'A4 Table Standee' },
-                  { id: 'A5_TENT', label: 'A5 Table Tent' },
-                  { id: 'A3_EASEL', label: 'A3 Entrance Easel' },
-                ].map((s) => (
-                  <button
-                    key={s.id}
-                    type="button"
-                    onClick={() => setStandeeSize(s.id as 'A4_PORTRAIT' | 'A5_TENT' | 'A3_EASEL')}
-                    className={`py-2 px-2.5 rounded-xl text-[11px] font-bold border transition-all cursor-pointer ${
-                      standeeSize === s.id
-                        ? 'border-indigo-600 bg-indigo-50 text-indigo-700 shadow-sm'
-                        : 'border-slate-200 hover:border-slate-300 text-slate-600 bg-white'
-                    }`}
-                  >
-                    {s.label}
-                  </button>
-                ))}
+          {/* Export & Print Action Buttons */}
+          <div className="p-5 rounded-3xl bg-slate-900 text-white shadow-xl space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="font-bold text-sm">Print & Export Physical Standee</h4>
+                <p className="text-[11px] text-slate-400">High-resolution vector output for acrylic/foam boards</p>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2.5 pt-1">
+            <div className="grid grid-cols-2 gap-3 pt-1">
               <button
                 type="button"
                 onClick={handlePrint}
-                className="lr-btn-primary-gradient px-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+                className="py-3 px-4 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer"
               >
-                <Printer size={15} /> Print Standee (PDF)
+                <Printer size={15} />
+                Print Standee (PDF)
               </button>
+
               <button
                 type="button"
                 onClick={handleDownloadPng}
-                className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 px-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-colors shadow-sm"
+                className="py-3 px-4 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs flex items-center justify-center gap-2 border border-white/20 transition-all cursor-pointer"
               >
-                <Download size={14} /> Download QR PNG
+                <Download size={15} />
+                Download Scannable QR
               </button>
             </div>
-
-            <button
-              type="button"
-              onClick={handleRegenerate}
-              className="w-full text-xs text-rose-600 hover:text-rose-700 hover:underline flex items-center justify-center gap-1.5 pt-2 cursor-pointer"
-            >
-              <RefreshCw size={12} />
-              Regenerate QR Token (Revoke Old)
-            </button>
-            {regenerated && (
-              <p className="text-[11px] text-emerald-600 text-center font-semibold animate-fade-in">
-                ✓ New secure token generated and active
-              </p>
-            )}
           </div>
         </div>
 
-        {/* ── Right 7 Cols: High-Res Themed Standee Live Preview ────────────── */}
-        <div className="lg:col-span-7 flex flex-col items-center justify-center">
-          {/* Standee Container (Prints Cleanly) */}
+        {/* ── Right 7 Cols: Live Physical Standee Preview ──────────────────── */}
+        <div className="lg:col-span-7 sticky top-6">
+          <div className="flex items-center justify-between mb-3 px-1">
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
+              <Sparkles size={14} className="text-amber-500" />
+              <span>Live Standee Preview (A4 Ratio)</span>
+            </div>
+            <span className="text-[11px] text-slate-400 font-mono">
+              Event: {currentEvent.name}
+            </span>
+          </div>
+
+          {/* ── Standee Card Frame ────────────────────────────────────────── */}
           <div
             id="printable-standee"
             ref={standeeRef}
-            className={`w-full max-w-lg rounded-3xl p-7 sm:p-9 shadow-2xl relative overflow-hidden transition-all text-center ${
+            className={`relative rounded-[32px] overflow-hidden p-8 sm:p-10 shadow-2xl border transition-all text-center flex flex-col justify-between min-h-[640px] ${
               theme === 'wedding_royal'
-                ? 'bg-gradient-to-b from-[#fdfbf7] via-[#fffdf9] to-[#faf5ec] text-amber-950 border-[6px] border-[#e8d8b5]'
+                ? 'bg-gradient-to-b from-amber-50/90 via-orange-50/40 to-amber-100/60 border-amber-200/80 text-amber-950'
                 : theme === 'tech_summit'
-                ? 'bg-gradient-to-b from-[#0b0f19] via-[#0f172a] to-[#1e1b4b] text-white border-[6px] border-indigo-500/30'
+                ? 'bg-gradient-to-b from-slate-950 via-slate-900 to-indigo-950 border-indigo-900/50 text-white shadow-indigo-950/50'
                 : theme === 'vip_awards'
-                ? 'bg-gradient-to-b from-[#18181b] via-[#09090b] to-[#1c1917] text-amber-100 border-[6px] border-amber-500/40'
-                : 'bg-white text-slate-900 border-4 border-slate-200'
+                ? 'bg-gradient-to-b from-stone-950 via-neutral-900 to-stone-950 border-amber-500/40 text-amber-100 shadow-amber-950/40'
+                : 'bg-white border-slate-200 text-slate-900'
             }`}
           >
-            {/* ── Background SVG Graphical Ornaments ──────────────────────── */}
-            {theme === 'wedding_royal' && (
-              <>
-                {/* Top Corner Floral Mandalas */}
-                <div className="absolute -top-10 -left-10 w-36 h-36 opacity-30 pointer-events-none">
-                  <svg viewBox="0 0 100 100" fill={accentColor}>
-                    <circle cx="50" cy="50" r="40" fill="none" stroke={accentColor} strokeWidth="1.5" strokeDasharray="3 3" />
-                    <path d="M50 0 C60 30, 70 40, 100 50 C70 60, 60 70, 50 100 C40 70, 30 60, 0 50 C30 40, 40 30, 50 0 Z" />
-                  </svg>
-                </div>
-                <div className="absolute -top-10 -right-10 w-36 h-36 opacity-30 pointer-events-none">
-                  <svg viewBox="0 0 100 100" fill={accentColor}>
-                    <circle cx="50" cy="50" r="40" fill="none" stroke={accentColor} strokeWidth="1.5" strokeDasharray="3 3" />
-                    <path d="M50 0 C60 30, 70 40, 100 50 C70 60, 60 70, 50 100 C40 70, 30 60, 0 50 C30 40, 40 30, 50 0 Z" />
-                  </svg>
-                </div>
-                {/* Subtle Arch Border */}
-                <div className="absolute inset-2 rounded-2xl border border-amber-300/40 pointer-events-none" />
-              </>
-            )}
-
-            {theme === 'tech_summit' && (
-              <>
-                {/* Cyber Grid Background */}
-                <div className="absolute inset-0 bg-[radial-gradient(#4f46e5_1px,transparent_1px)] [background-size:16px_16px] opacity-20 pointer-events-none" />
-                <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-80 h-40 bg-indigo-500/20 blur-3xl pointer-events-none" />
-              </>
-            )}
-
-            {theme === 'vip_awards' && (
-              <>
-                {/* Gold Ray Ambient Glow */}
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-48 bg-amber-500/15 blur-3xl pointer-events-none" />
-                <div className="absolute inset-2 rounded-2xl border border-amber-500/20 pointer-events-none" />
-              </>
-            )}
-
-            {/* ── Top Header Badge ────────────────────────────────────────── */}
-            <div className="relative z-10 flex items-center justify-center gap-2 mb-4">
+            {/* Top Event Category Tag */}
+            <div className="relative z-10 flex justify-center">
               <span
-                className={`px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-widest inline-flex items-center gap-1.5 shadow-sm ${
+                className={`px-4 py-1 rounded-full text-[10px] font-black tracking-widest uppercase shadow-sm border ${
                   theme === 'wedding_royal'
-                    ? 'bg-amber-100/80 text-amber-900 border border-amber-300'
+                    ? 'bg-amber-500/10 border-amber-500/30 text-amber-800'
                     : theme === 'tech_summit'
-                    ? 'bg-indigo-950/80 text-indigo-300 border border-indigo-500/40'
+                    ? 'bg-indigo-500/20 border-indigo-500/40 text-indigo-300'
                     : theme === 'vip_awards'
-                    ? 'bg-amber-950/80 text-amber-300 border border-amber-500/40'
-                    : 'bg-slate-100 text-slate-800 border border-slate-200'
+                    ? 'bg-amber-500/20 border-amber-500/40 text-amber-300'
+                    : 'bg-slate-100 border-slate-200 text-slate-700'
                 }`}
               >
-                {theme === 'wedding_royal' && <Heart size={12} className="fill-amber-600 text-amber-600" />}
-                {theme === 'tech_summit' && <Sparkles size={12} className="text-indigo-400" />}
-                {theme === 'vip_awards' && <Award size={12} className="text-amber-400" />}
-                {eventConfig.category}
+                {currentEvent.category || 'Celebration Event'}
               </span>
             </div>
 
-            {/* ── Dual Side-by-Side Portraits (Bride & Groom or Speakers) ─── */}
+            {/* Portraits (Optional) */}
             {showPortraits && (
-              <div className="relative z-10 flex items-center justify-center gap-4 sm:gap-6 my-4">
-                {/* Left Portrait */}
-                <div className="flex flex-col items-center group">
-                  <div
-                    className={`w-20 h-20 sm:w-24 sm:h-24 rounded-full p-1 shadow-lg transition-transform group-hover:scale-105 ${
-                      theme === 'wedding_royal'
-                        ? 'bg-gradient-to-tr from-amber-400 via-amber-200 to-amber-500'
-                        : theme === 'tech_summit'
-                        ? 'bg-gradient-to-tr from-indigo-500 via-cyan-400 to-violet-500'
-                        : theme === 'vip_awards'
-                        ? 'bg-gradient-to-tr from-amber-500 via-yellow-200 to-amber-700'
-                        : 'bg-slate-200'
-                    }`}
-                  >
-                    <img
-                      src={leftPhoto}
-                      alt={leftName}
-                      className="w-full h-full rounded-full object-cover"
-                    />
-                  </div>
-                  <span
-                    className={`text-xs font-bold mt-2 truncate max-w-[100px] ${
-                      theme === 'tech_summit' || theme === 'vip_awards' ? 'text-slate-200' : 'text-slate-800'
-                    }`}
-                  >
-                    {leftName}
-                  </span>
+              <div className="relative z-10 flex items-center justify-center gap-6 my-4">
+                <div className="space-y-1">
+                  <img
+                    src={leftPhoto}
+                    alt={leftName}
+                    className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover border-2 border-amber-400 shadow-md mx-auto"
+                  />
+                  <div className="text-[11px] font-bold truncate max-w-[90px]">{leftName}</div>
                 </div>
 
-                {/* Central Emblem / Heart / Icon */}
-                <div className="flex flex-col items-center justify-center -mt-4">
-                  {theme === 'wedding_royal' && (
-                    <div className="w-9 h-9 rounded-full bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-700 shadow-md">
-                      <Heart size={18} className="fill-amber-600 text-amber-600 animate-pulse" />
-                    </div>
-                  )}
-                  {theme === 'tech_summit' && (
-                    <div className="w-9 h-9 rounded-full bg-indigo-950 border border-indigo-500/50 flex items-center justify-center text-indigo-400 shadow-md">
-                      <Sparkles size={16} />
-                    </div>
-                  )}
-                  {theme === 'vip_awards' && (
-                    <div className="w-9 h-9 rounded-full bg-amber-950 border border-amber-500/50 flex items-center justify-center text-amber-400 shadow-md">
-                      <Award size={18} />
-                    </div>
-                  )}
-                  {theme === 'modern_minimal' && (
-                    <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 text-xs font-black">
-                      &
-                    </div>
-                  )}
+                <div className="w-8 h-8 rounded-full bg-amber-400 text-slate-950 flex items-center justify-center font-bold text-xs shadow-md">
+                  <Heart size={14} fill="currentColor" />
                 </div>
 
-                {/* Right Portrait */}
-                <div className="flex flex-col items-center group">
-                  <div
-                    className={`w-20 h-20 sm:w-24 sm:h-24 rounded-full p-1 shadow-lg transition-transform group-hover:scale-105 ${
-                      theme === 'wedding_royal'
-                        ? 'bg-gradient-to-tr from-amber-400 via-amber-200 to-amber-500'
-                        : theme === 'tech_summit'
-                        ? 'bg-gradient-to-tr from-indigo-500 via-cyan-400 to-violet-500'
-                        : theme === 'vip_awards'
-                        ? 'bg-gradient-to-tr from-amber-500 via-yellow-200 to-amber-700'
-                        : 'bg-slate-200'
-                    }`}
-                  >
-                    <img
-                      src={rightPhoto}
-                      alt={rightName}
-                      className="w-full h-full rounded-full object-cover"
-                    />
-                  </div>
-                  <span
-                    className={`text-xs font-bold mt-2 truncate max-w-[100px] ${
-                      theme === 'tech_summit' || theme === 'vip_awards' ? 'text-slate-200' : 'text-slate-800'
-                    }`}
-                  >
-                    {rightName}
-                  </span>
+                <div className="space-y-1">
+                  <img
+                    src={rightPhoto}
+                    alt={rightName}
+                    className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover border-2 border-amber-400 shadow-md mx-auto"
+                  />
+                  <div className="text-[11px] font-bold truncate max-w-[90px]">{rightName}</div>
                 </div>
               </div>
             )}
 
-            {/* ── Big Central Headline & Venue ────────────────────────────── */}
+            {/* Main Headline & Date Venue */}
             <div className="relative z-10 space-y-1.5 my-3">
               <h2
-                className={`text-2xl sm:text-4xl font-black tracking-tight leading-tight ${
-                  theme === 'wedding_royal'
-                    ? 'font-serif text-amber-950'
-                    : theme === 'tech_summit'
-                    ? 'font-mono text-transparent bg-clip-text bg-gradient-to-r from-white via-indigo-200 to-cyan-300'
+                className={`text-2xl sm:text-3xl font-black tracking-tight ${
+                  theme === 'tech_summit'
+                    ? 'text-white'
                     : theme === 'vip_awards'
-                    ? 'font-serif text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-100 to-amber-400'
-                    : 'text-slate-900'
+                    ? 'text-amber-200'
+                    : 'text-amber-950 font-serif'
                 }`}
               >
-                {headline}
+                {headline || currentEvent.name}
               </h2>
               <p
-                className={`text-xs font-medium ${
-                  theme === 'tech_summit' || theme === 'vip_awards' ? 'text-slate-400' : 'text-slate-600'
+                className={`text-xs font-semibold ${
+                  theme === 'tech_summit'
+                    ? 'text-slate-300'
+                    : theme === 'vip_awards'
+                    ? 'text-amber-300/80'
+                    : 'text-amber-800'
                 }`}
               >
-                {eventConfig.date} • {eventConfig.venue}
+                {currentEvent.date} &bull; {currentEvent.venue}
               </p>
             </div>
 
-            {/* ── Action Banner Bar ───────────────────────────────────────── */}
-            <div className="relative z-10 my-4">
+            {/* Action Banner Pill */}
+            <div className="relative z-10 my-2">
               <div
-                className={`px-4 py-2.5 rounded-2xl font-bold text-xs sm:text-sm tracking-tight shadow-sm inline-flex items-center gap-2 ${
-                  theme === 'wedding_royal'
-                    ? 'bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 text-white shadow-amber-600/20'
-                    : theme === 'tech_summit'
-                    ? 'bg-gradient-to-r from-indigo-600 via-violet-600 to-cyan-600 text-white shadow-indigo-500/30'
+                className={`inline-flex items-center gap-2 px-6 py-2.5 rounded-2xl text-xs font-black shadow-md ${
+                  theme === 'tech_summit'
+                    ? 'bg-indigo-600 text-white shadow-indigo-600/30'
                     : theme === 'vip_awards'
-                    ? 'bg-gradient-to-r from-amber-600 via-yellow-600 to-amber-700 text-black font-extrabold shadow-amber-500/20'
-                    : 'bg-slate-900 text-white'
+                    ? 'bg-amber-500 text-slate-950 shadow-amber-500/30'
+                    : 'bg-amber-500 text-slate-950 shadow-amber-500/20'
                 }`}
               >
-                <Sparkles size={15} />
+                <Sparkles size={14} />
                 <span>{actionText}</span>
               </div>
               <p
-                className={`text-[11px] mt-1.5 max-w-sm mx-auto leading-relaxed ${
-                  theme === 'tech_summit' || theme === 'vip_awards' ? 'text-slate-400' : 'text-slate-500'
+                className={`text-[11px] font-medium max-w-sm mx-auto mt-2 leading-relaxed ${
+                  theme === 'tech_summit' || theme === 'vip_awards' ? 'text-slate-300' : 'text-amber-900/80'
                 }`}
               >
                 {subtext}
               </p>
             </div>
 
-            {/* ── Decorated Real Scannable QR Code ─────────────────────────── */}
-            <div className="relative z-10 my-4 inline-block">
-              <div
-                className={`p-4 rounded-3xl bg-white shadow-2xl relative border-2 ${
-                  theme === 'wedding_royal'
-                    ? 'border-amber-300'
-                    : theme === 'tech_summit'
-                    ? 'border-indigo-500'
-                    : theme === 'vip_awards'
-                    ? 'border-amber-400'
-                    : 'border-slate-300'
-                }`}
-              >
+            {/* Scannable QR Code Frame */}
+            <div className="relative z-10 my-4 flex justify-center">
+              <div className="p-4 bg-white rounded-3xl shadow-xl border border-slate-200/80 inline-block">
                 {qrDataUrl ? (
                   <img
                     src={qrDataUrl}
-                    alt={`Scannable QR Code for ${eventConfig.name}`}
-                    className="w-48 h-48 sm:w-56 sm:h-56 mx-auto rounded-xl object-contain"
+                    alt="Scannable Event QR"
+                    className="w-48 h-48 sm:w-56 sm:h-56 object-contain rounded-xl"
                   />
                 ) : (
-                  <div className="w-48 h-48 flex items-center justify-center text-xs text-slate-400">
-                    Generating QR...
+                  <div className="w-48 h-48 sm:w-56 sm:h-56 bg-slate-100 flex items-center justify-center rounded-xl animate-pulse">
+                    <QrCode size={36} className="text-slate-400" />
                   </div>
                 )}
-
-                {/* Decorative corner brackets */}
-                <div
-                  className="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 rounded-tl"
-                  style={{ borderColor: accentColor }}
-                />
-                <div
-                  className="absolute top-2 right-2 w-4 h-4 border-t-2 border-r-2 rounded-tr"
-                  style={{ borderColor: accentColor }}
-                />
-                <div
-                  className="absolute bottom-2 left-2 w-4 h-4 border-b-2 border-l-2 rounded-bl"
-                  style={{ borderColor: accentColor }}
-                />
-                <div
-                  className="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 rounded-br"
-                  style={{ borderColor: accentColor }}
-                />
               </div>
             </div>
 
-            {/* ── 3-Step Instruction Icons ─────────────────────────────────── */}
-            <div
-              className={`relative z-10 grid grid-cols-3 gap-2 pt-3 mt-2 border-t text-center ${
-                theme === 'tech_summit' || theme === 'vip_awards' ? 'border-white/10' : 'border-amber-200/60'
-              }`}
-            >
+            {/* 3 Step Instruction Row */}
+            <div className="relative z-10 grid grid-cols-3 gap-2 pt-2 max-w-sm mx-auto border-t border-slate-200/40">
               <div>
                 <div
                   className={`w-6 h-6 rounded-full text-[10px] font-bold flex items-center justify-center mx-auto mb-1 ${
@@ -832,7 +682,7 @@ export default function QrManagementPage() {
                 >
                   Scan QR Code
                 </div>
-                <div className="text-[9px] text-slate-400">Tap banner</div>
+                <div className="text-[9px] text-slate-400">Tap link popup</div>
               </div>
 
               <div>
@@ -868,11 +718,19 @@ export default function QrManagementPage() {
                   : 'text-amber-800/60'
               }`}
             >
-              Captured by Apex Events &bull; Powered by LensRecall AI
+              Powered by LensRecall AI
             </div>
           </div>
         </div>
       </div>
     </div>
+  );
+}
+
+export default function QrManagementPage() {
+  return (
+    <Suspense fallback={<div className="p-12 text-center text-xs text-slate-400">Loading Standee Studio...</div>}>
+      <QrStudioContent />
+    </Suspense>
   );
 }
